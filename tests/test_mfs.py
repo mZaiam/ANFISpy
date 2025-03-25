@@ -1,22 +1,26 @@
-from ..ANFIS.mfs import GaussianMF, BellMF, SigmoidMF, TriangularMF
+import pytest
+import torch
+from ANFIS.mfs import GaussianMF, BellMF, SigmoidMF, TriangularMF
 
 n_sets = 4
 uod = [-1, 1]
+n_samples = 10
+x = torch.randn(n_samples, 1)
 
-def gaussian():
-    mf = GaussianMF(n_sets, uod)
+@pytest.fixture(
+    params=[GaussianMF, BellMF, SigmoidMF, TriangularMF]
+)
 
-def bell():
-    mf = BellMF(n_sets, uod)
+def mf_class(request):
+    return request.param
 
-def sigmoid():
-    mf = SigmoidMF(n_sets, uod)
+def test_initialization(mf_class):
+    mf = mf_class(n_sets=n_sets, uod=uod)
+    assert mf.n_sets == n_sets
+    assert mf.uod == uod
 
-def triangular():
-    mf = TriangularMF(n_sets, uod)
-
-if __name__ == '__main__':
-    gaussian()
-    bell()
-    sigmoid()
-    triangular()
+def test_output(mf_class):
+    mf = mf_class(n_sets=n_sets, uod=uod)
+    y = mf(x)
+    assert y.shape[0] == n_samples
+    assert y.shape[1] == n_sets
