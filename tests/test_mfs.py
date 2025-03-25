@@ -1,6 +1,6 @@
 import pytest
 import torch
-from ANFIS.mfs import GaussianMF, BellMF, SigmoidMF, TriangularMF
+from ANFISpy.mfs import GaussianMF, BellMF, SigmoidMF, TriangularMF
 
 n_sets = 4
 uod = [-1, 1]
