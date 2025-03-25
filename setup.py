@@ -3,6 +3,8 @@ from setuptools import setup, find_packages
 setup(
     name="ANFISpy",
     version="0.1.0",
+    author="Matheus Zaia Monteiro",
+    url="https://github.com/mZaiam/ANFISpy",
     packages=find_packages(),
     install_requires=[
         "torch>=2.5.1",

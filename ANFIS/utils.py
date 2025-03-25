@@ -37,7 +37,7 @@ def _print_rules(instance, mean_rule_activation=False):
             
         return rules
 
-def plot_var(instance, var_name, file_name=False):
+def _plot_var(instance, var_name, file_name=False):
         '''Plots the membership functions for a certain variable of the model.
 
         Args:
