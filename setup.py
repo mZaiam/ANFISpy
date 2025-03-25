@@ -4,6 +4,7 @@ setup(
     name="ANFISpy",
     version="0.1.0",
     author="Matheus Zaia Monteiro",
+    author_email="matheus.z.monteiro@gmail.com",
     url="https://github.com/mZaiam/ANFISpy",
     packages=find_packages(),
     install_requires=[
