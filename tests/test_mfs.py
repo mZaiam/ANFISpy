@@ -1,4 +1,4 @@
-from ANFIS import GaussianMF, BellMF, SigmoidMF, TriangularMF
+from ..ANFIS.mfs import GaussianMF, BellMF, SigmoidMF, TriangularMF
 
 n_sets = 4
 uod = [-1, 1]
