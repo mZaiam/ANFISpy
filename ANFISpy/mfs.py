@@ -3,7 +3,8 @@ import torch.nn as nn
 
 class GaussianMF(nn.Module):
     def __init__(self, n_sets, uod):
-        '''Gaussian membership function. Receives the input tensor of a variable and outputs the tensor with the membership            values.
+        '''Gaussian membership function. Receives the input tensor of a variable and outputs the tensor with the membership            
+        values.
 
         Args:
             n_sets:      int for number of fuzzy sets associated to the variable.
@@ -38,7 +39,8 @@ class GaussianMF(nn.Module):
     
 class TriangularMF(nn.Module):
     def __init__(self, n_sets, uod):
-        '''Triangular membership function. Receives the input tensor of a variable and outputs the tensor with the                      membership values.
+        '''Triangular membership function. Receives the input tensor of a variable and outputs the tensor with the                      
+        membership values.
 
         Args:
             n_sets: int for number of fuzzy sets associated to the variable.
