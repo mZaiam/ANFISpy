@@ -22,7 +22,14 @@ class ANFIS(nn.Module):
 
         Args:
             variables:            dict with two keys, 'inputs' and 'output'. The 'input' has a dict as its value,
-                                  containing four keys: 'n_sets', 'uod', 'var_names' and 'mf_names'. They have lists as                                       their values, containing, respectively: int with number of fuzzy sets associated to the                                     variable, tuple/list with the universe of discourse of the variable, str with the name of                                   the variable and list of str with the name of the fuzzy sets. The lists need to be the                                       same length, and the index of them are all associated, that is, index 0 represents the                                       information of the same variable. Now, 'output' has only the keys 'var_names' and                                           'n_classes', with a str representing the name of the variable and an int with the number                                     of classes (if the model is a regressor, insert 1). 
+                                  containing four keys: 'n_sets', 'uod', 'var_names' and 'mf_names'. They have lists as                                       
+                                  their values, containing, respectively: int with number of fuzzy sets associated to the                                     
+                                  variable, tuple/list with the universe of discourse of the variable, str with the name of                                   
+                                  the variable and list of str with the name of the fuzzy sets. The lists need to be the                                       
+                                  same length, and the index of them are all associated, that is, index 0 represents the                                       
+                                  information of the same variable. Now, 'output' has only the keys 'var_names' and                                           
+                                  'n_classes', with a str representing the name of the variable and an int with the number                                     
+                                  of classes (if the model is a regressor, insert 1). 
             mf_shape:             str containing the shape of the fuzzy sets of the system. Supports 'triangular', 'bell'
                                   'sigmoid' and 'gaussian'.
             and_operator:         torch function to model the AND in the antecedents calculation.
