@@ -5,7 +5,8 @@ import itertools
 
 class Antecedents(nn.Module):
     def __init__(self, n_sets, and_operator, mean_rule_activation=False):
-        '''Calculates the antecedent values of the rules. Makes all possible combinations from the fuzzy sets defined for              each variable, considering rules of the form: var1 is set1 and ... and varn is setn.
+        '''Calculates the antecedent values of the rules. Makes all possible combinations from the fuzzy sets defined for              
+        each variable, considering rules of the form: var1 is set1 and ... and varn is setn.
 
         Args:
             n_sets:               list with the number of fuzzy sets associated to each variable.
@@ -54,7 +55,8 @@ class Antecedents(nn.Module):
     
 class ConsequentsRegression(nn.Module):
     def __init__(self, n_sets):
-        '''Calculates the consequent values of the system for a regression problem, considering a linear combination of the            input variables.
+        '''Calculates the consequent values of the system for a regression problem, considering a linear combination of the            
+        input variables.
 
         Args:
             n_sets:       list with the number of fuzzy sets associated to each variable.
@@ -80,7 +82,8 @@ class ConsequentsRegression(nn.Module):
     
 class ConsequentsClassification(nn.Module):
     def __init__(self, n_sets, n_classes):
-        '''Calculates the consequent values of the system for a classification problem, considering a linear combination of            the input variables.
+        '''Calculates the consequent values of the system for a classification problem, considering a linear combination of            
+        the input variables.
 
         Args:
             n_sets:       list with the number of fuzzy sets associated to each variable.
