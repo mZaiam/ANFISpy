@@ -109,7 +109,7 @@ class ConsequentsClassification(nn.Module):
         return consequents
 
 class InferenceRegression(nn.Module):
-    def __init__(self, output_activation=nn.ReLU()):
+    def __init__(self, output_activation=nn.Identity()):
         '''Performs the Takagi-Sugeno-Kang inference for a regression problem.
         
         Args:
@@ -140,7 +140,7 @@ class InferenceClassification(nn.Module):
             consequents: tensor (R, N, m) with the outputs of each rule.
             Y:           tensor (N, m) with the outputs of the system.
         '''
-        
+
         super(InferenceClassification, self).__init__()
 
     def forward(self, antecedents, consequents):
