@@ -29,7 +29,7 @@ from ANFISpy import ANFIS
 ```
 
 # Quick Example
-The ANFIS model can be used to perform both regression and classification, as explained in [example.ipynb](https://github.com/mZaiam/ANFISpy/blob/main/examples/example.ipynb). To instantiate a regression model, set the value of `n_classes' in the `output` to 1.
+The ANFIS model can be used to perform both regression and classification, as explained in [example.ipynb](https://github.com/mZaiam/ANFISpy/blob/main/examples/example.ipynb). To instantiate a regression model, set the value of `n_classes` in the `output` to 1.
 
 ```python
 from ANFISpy import ANFIS
