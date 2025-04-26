@@ -78,3 +78,6 @@ anfis_classification = ANFIS(variables, 'bell')
 ```
 
 The notebook [example.ipynb](https://github.com/mZaiam/ANFISpy/blob/main/examples/example.ipynb) has a more detailed explanation of how to use the model, as well as the visualization methods implemented.
+
+# Contact
+This repository was built by Matheus Zaia Monteiro. Feel free to get in contact via the following e-mail: `matheus.z.monteiro@gmail.com`.
