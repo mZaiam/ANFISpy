@@ -53,7 +53,7 @@ variables = {
 anfis_regression = ANFIS(variables, 'gaussian')
 ```
 
-To create a clasification model, set the value of `n_classes' in the `output` to a number of classes greater or equal to 2. 
+To create a clasification model, set the value of `n_classes` in the `output` to a number of classes greater or equal to 2. 
 
 ```python
 from ANFISpy import ANFIS
