@@ -92,6 +92,9 @@ def _plot_rules(
             file_name: str with the name of the file to be saved, if desired.
         '''
         
+        if len(var_names) != 2:
+            raise ValueError('Exactly two variable names should be provided.')
+        
         var_index = instance.input_var_names.index(var_names[0])
         n_sets0 = instance.input_n_sets[var_index]
         uod0 = torch.linspace(*instance.input_uod[var_index], n_points)
@@ -121,10 +124,13 @@ def _plot_rules(
         
         for i in range(n_sets0):
             for j in range(n_sets1):
-                if instance.and_operator == torch.prod:
-                    Z = np.outer(memberships1[:, j].detach().numpy(), memberships0[:, i].detach().numpy())
-                elif instance.and_operator == torch.min:
-                    Z = np.minimum.outer(memberships1[:, j].detach().numpy(), memberships0[:, i].detach().numpy())
+                mu0 = memberships0[:, i].detach()  
+                mu1 = memberships1[:, j].detach()  
+
+                mf0 = mu1.unsqueeze(1).repeat(1, n_points) 
+                mf1 = mu0.unsqueeze(0).repeat(n_points, 1)
+                rule = torch.stack([mf0, mf1], dim=0)
+                Z = instance.and_operator(rule, dim=0).numpy()
                 
                 Z[Z < thr] = np.nan
                 ax_main.contourf(X, Y, Z, levels=levels, cmap=cmap, alpha=alpha)

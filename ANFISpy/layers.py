@@ -113,7 +113,7 @@ class InferenceRegression(nn.Module):
         '''Performs the Takagi-Sugeno-Kang inference for a regression problem.
         
         Args:
-            output_activation: nn.Module for output activation function.
+            output_activation: torch function.
         
         Tensors:
             antecedents:       tensor (N, R) with the weights of activation of each rule.
@@ -132,17 +132,125 @@ class InferenceRegression(nn.Module):
         return Y
     
 class InferenceClassification(nn.Module):
-    def __init__(self):
+    def __init__(self, output_activation=nn.Identity()):
         '''Performs the Takagi-Sugeno-Kang inference for a classification problem.
+
+        Args:
+            output_activation: torch function.
+        
+        Tensors:
+            antecedents:       tensor (N, R) with the weights of activation of each rule.
+            consequents:       tensor (R, N, m) with the outputs of each rule.
+            Y:                 tensor (N, m) with the outputs of the system.
+        '''
+
+        super(InferenceClassification, self).__init__()
+        
+        self.output_activation = output_activation
+        
+    def forward(self, antecedents, consequents):
+        Y = torch.sum(antecedents.T.unsqueeze(-1) * consequents, dim=0) / torch.sum(antecedents, dim=1, keepdim=True)
+        return self.output_activation(Y)
+
+############# RANFIS #############
+    
+class RecurrentInferenceRegression(nn.Module):
+    def __init__(self, output_activation=nn.Identity()):
+        '''Performs the Takagi-Sugeno-Kang inference for RANFIS in a regression problem.
+        
+        Args:
+            output_activation: torch activation function.
+        
+        Tensors:
+            antecedents:       tensor (N, R) with the weights of activation of each rule.
+            consequents:       tensor (N, R) with the outputs of each rule.
+            h:                 tensor (R) with hidden state.
+            Y:                 tensor (N) with the outputs of the system.
+            output_activation: torch function.
+        '''
+        
+        super(RecurrentInferenceRegression, self).__init__()
+        
+        self.output_activation = output_activation
+
+    def forward(self, antecedents, consequents, h):
+        weights = antecedents / torch.sum(antecedents, dim=1, keepdim=True) 
+        Y = torch.sum(weights * (consequents + h), dim=1, keepdim=True) 
+        Y = self.output_activation(Y)
+        return Y
+    
+class RecurrentInferenceClassification(nn.Module):
+    def __init__(self, output_activation=nn.Identity()):
+        '''Performs the Takagi-Sugeno-Kang inference for RANFIS in a classification problem.
+
+        Args:
+            output_activation: torch activation function.
 
         Tensors:
             antecedents: tensor (N, R) with the weights of activation of each rule.
             consequents: tensor (R, N, m) with the outputs of each rule.
+            h:           tensor (R) with hidden state.
             Y:           tensor (N, m) with the outputs of the system.
         '''
 
-        super(InferenceClassification, self).__init__()
+        super(RecurrentInferenceClassification, self).__init__()
 
-    def forward(self, antecedents, consequents):
-        Y = torch.sum(antecedents.T.unsqueeze(-1) * consequents, dim=0) / torch.sum(antecedents, dim=1, keepdim=True)
-        return Y
+        self.output_activation = output_activation
+        
+    def forward(self, antecedents, consequents, h):
+        weights = antecedents / torch.sum(antecedents, dim=1, keepdim=True)
+        consequents += h
+        Y = torch.sum(weights.unsqueeze(-1) * consequents.transpose(0, 1), dim=1)
+        return self.output_activation(Y)
+
+class RecurrentLayerRegression(nn.Module):
+    def __init__(self, n_rules, activation=nn.Tanh()):
+        '''Updates the hidden state vector of a RANFIS for regression.
+
+        Args:
+            n_rules:     int for number of rules in RANFIS.
+            activation:  torch activation function.
+
+        Tensors:
+            consequents: tensor (N, R) with the outputs of each rule.
+            h_old:       tensor (N, R) with old hidden state.
+            U:           tensor (R, R) with weights for transforming old hidden state. (Opt.)
+            b:           tensor (R) with bias for the new hidden state. (Opt.)
+            h_new:       tensor (N, R) with new hidden state.
+        '''
+        
+        super(RecurrentLayerRegression, self).__init__()
+
+        self.activation = activation
+        self.U = nn.Parameter(torch.randn(n_rules, n_rules))
+        self.b = nn.Parameter(torch.randn(n_rules))
+        
+    def forward(self, consequents, h_old):
+        h_new = h_old @ self.U + consequents + self.b 
+        return self.activation(h_new)
+
+class RecurrentLayerClassification(nn.Module):
+    def __init__(self, n_rules, activation=nn.Tanh()):
+        '''Updates the hidden state vector of a RANFIS for classification.
+
+        Args:
+            n_rules:     int for number of rules in RANFIS.
+            activation:  torch activation function.
+
+        Tensors:
+            consequents: tensor (R, N, m) with the outputs of each rule.
+            h_old:       tensor (R, N, m) with old hidden state.
+            U:           tensor (R, R) with weights for transforming old hidden state (opt.).
+            b:           tensor (R) with bias for the new hidden state (opt.).
+            h_new:       tensor (R, N, m) with new hidden state.
+        '''
+
+        super(RecurrentLayerClassification, self).__init__()
+
+        self.activation = activation
+        self.U = nn.Parameter(torch.randn(n_rules, n_rules))
+        self.b = nn.Parameter(torch.randn(n_rules))
+        
+    def forward(self, consequents, h_old):
+        h_new = (h_old.transpose(0, -1) @ self.U).transpose(0, -1) + consequents + self.b.view(-1, 1, 1) 
+        return self.activation(h_new)
