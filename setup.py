@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 
 setup(
     name="anfispy",
-    version="0.2.0",
+    version="0.2.1",
     author="Matheus Zaia Monteiro",
     author_email="matheus.z.monteiro@gmail.com",
     url="https://github.com/mZaiam/ANFISpy",
