@@ -79,14 +79,16 @@ class TriangularMF(nn.Module):
         return memberships
 
 class BellMF(nn.Module):
-    def __init__(self, n_sets, uod):
+    def __init__(self, n_sets, uod, overlap=2, scale_b=2):
         '''Generalized bell membership function. Receives the input tensor of a variable and outputs the tensor with the 
         membership values.
 
         Args:
             n_sets:      int for number of fuzzy sets associated to the variable.
             uod:         list/tuple with the universe of discourse of the variable.
-
+            overlap:     int for nn.Paramater a.
+            param_b:     int for nn.Parameter b.
+    
         Tensors:
             x:           tensor (N) containing the inputs of a variable.
             a:           tensor (n) representing the a parameter for the bell set (opt).
@@ -103,8 +105,8 @@ class BellMF(nn.Module):
         step = ((uod[1] - uod[0]) / (n_sets - 1))
         
         self.c = nn.Parameter(torch.linspace(*uod, n_sets))
-        self.a = nn.Parameter((step / 2) * torch.ones(n_sets))
-        self.b = nn.Parameter(step * torch.ones(n_sets))
+        self.a = nn.Parameter((step / overlap) * torch.ones(n_sets))
+        self.b = nn.Parameter(param_b * torch.ones(n_sets))
 
     def forward(self, x):
         x = x.reshape(-1, 1).repeat(1, self.n_sets)
@@ -118,13 +120,14 @@ class BellMF(nn.Module):
         return memberships
     
 class SigmoidMF(nn.Module):
-    def __init__(self, n_sets, uod):
+    def __init__(self, n_sets, uod, scale=10):
         '''Sigmoid membership function. Receives the input tensor of a variable and outputs the tensor with the 
         membership values.
 
         Args:
             n_sets:      int for number of fuzzy sets associated to the variable.
             uod:         list/tuple with the universe of discourse of the variable.
+            scale:       int for nn.Parameter a.
 
         Tensors:
             x:           tensor (N) containing the inputs of a variable.
@@ -142,7 +145,7 @@ class SigmoidMF(nn.Module):
         delta = uod[1] - uod[0]
     
         self.c = nn.Parameter(torch.linspace(uod[0] + 0.05 * delta, uod[1] - 0.05 * delta, n_sets))
-        self.a = nn.Parameter(2 * step * torch.ones(n_sets))
+        self.a = nn.Parameter((scale / step) * torch.ones(n_sets))
 
     def forward(self, x):
         x = x.reshape(-1, 1).repeat(1, self.n_sets)
