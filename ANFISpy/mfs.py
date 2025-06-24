@@ -79,7 +79,7 @@ class TriangularMF(nn.Module):
         return memberships
 
 class BellMF(nn.Module):
-    def __init__(self, n_sets, uod, overlap=2, scale_b=2):
+    def __init__(self, n_sets, uod, overlap=2, param_b=2):
         '''Generalized bell membership function. Receives the input tensor of a variable and outputs the tensor with the 
         membership values.
 
