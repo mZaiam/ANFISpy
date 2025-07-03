@@ -6,7 +6,7 @@ import numpy as np
 
 from .mfs import GaussianMF, BellMF, SigmoidMF, TriangularMF
 from .layers import Antecedents, ConsequentsClassification, ConsequentsRegression, InferenceClassification, InferenceRegression
-from .layers import RecurrentInferenceClassification, RecurrentInferenceRegression, RecurrentLayerRegression, RecurrentLayerClassification
+from .layers import RecurrentInferenceClassification, RecurrentInferenceRegression, RecurrentLayerRegression, RecurrentLayerClassification, LSTMLayerRegression, LSTMLayerClassification
 from .utils import _plot_var, _plot_rules, _print_rules
 
 class ANFIS(nn.Module):
@@ -147,7 +147,6 @@ class RANFIS(nn.Module):
         mf_shape, 
         and_operator=torch.prod, 
         output_activation=nn.Identity(),
-        recurrent_activation=nn.Tanh(),
         mean_rule_activation=False
     ):
         '''Recurrent Adaptative Neuro-Fuzzy Inference System with Takagi-Sugeno-Kang architecture. Can perform both
@@ -161,7 +160,6 @@ class RANFIS(nn.Module):
                                   'sigmoid' and 'gaussian'.
             and_operator:         torch function to model the AND in the antecedents calculation.
             output_activation:    torch function for output activation function.
-            recurrent_activation: torch function for recurrent activation function.
             mean_rule_activation: bool to keep the mean rule activation values. 
         '''
 
@@ -203,12 +201,12 @@ class RANFIS(nn.Module):
         if self.output_n_classes == 1:
             self.consequents = ConsequentsRegression(self.input_n_sets)
             self.inference = RecurrentInferenceRegression(output_activation)
-            self.recurrent = RecurrentLayerRegression(self.antecedents.n_rules, activation=recurrent_activation)
+            self.recurrent = RecurrentLayerRegression(self.antecedents.n_rules)
 
         else:
             self.consequents = ConsequentsClassification(self.input_n_sets, self.output_n_classes)
             self.inference = RecurrentInferenceClassification(output_activation)
-            self.recurrent = RecurrentLayerClassification(self.antecedents.n_rules, activation=recurrent_activation)
+            self.recurrent = RecurrentLayerClassification(self.antecedents.n_rules)
         
     def anfis_forward(self, x, h):
         '''Makes an ANFIS forward pass using the hidden state vector.
@@ -289,3 +287,110 @@ class RANFIS(nn.Module):
         '''
         
         return _plot_rules(self, var_names, n_points, thr, levels, cmap, alpha, x_data, y_data, file_name)
+    
+class LSTMANFIS(nn.Module):
+    def __init__(
+        self, 
+        variables, 
+        mf_shape, 
+        and_operator=torch.prod, 
+        output_activation=nn.Identity(),
+        mean_rule_activation=False
+    ):
+        '''Long-Short Term Memory Adaptative Neuro-Fuzzy Inference System with Takagi-Sugeno-Kang architecture. Can perform both regression and
+           classification.
+
+        Args:
+            variables:            dict with two keys, 'inputs' and 'output'. The 'input' has a dict as its value,
+                                  containing four keys: 'n_sets', 'uod', 'var_names' and 'mf_names'. They have lists as                                       
+                                  their values, containing, respectively: int with number of fuzzy sets associated to the                                     
+                                  variable, tuple/list with the universe of discourse of the variable, str with the name of                                   
+                                  the variable and list of str with the name of the fuzzy sets. The lists need to be the                                       
+                                  same length, and the index of them are all associated, that is, index 0 represents the                                       
+                                  information of the same variable. Now, 'output' has only the keys 'var_names' and                                           
+                                  'n_classes', with a str representing the name of the variable and an int with the number                                     
+                                  of classes (if the model is a regressor, insert 1). 
+            mf_shape:             str containing the shape of the fuzzy sets of the system. Supports 'triangular', 'bell'
+                                  'sigmoid' and 'gaussian'.
+            and_operator:         torch function to model the AND in the antecedents calculation.
+            output_activation:    torch function for output activation function.
+            mean_rule_activation: bool to keep the mean rule activation values. 
+        '''
+
+        super(LSTMANFIS, self).__init__()
+
+        self.input_n_sets = variables['inputs']['n_sets']
+        self.input_uod = variables['inputs']['uod']
+        self.input_var_names = variables['inputs']['var_names']
+        self.input_mf_names = variables['inputs']['mf_names']
+        
+        self.output_var_names = variables['output']['var_names']
+        self.output_n_classes = variables['output']['n_classes']
+        
+        self.mf_shape = mf_shape
+        self.and_operator = and_operator
+        
+        if mf_shape == 'gaussian':
+            self.memberships = nn.ModuleList(
+                [GaussianMF(n_sets_, uod_) for n_sets_, uod_ in zip(self.input_n_sets, self.input_uod)]
+            )
+            
+        elif mf_shape == 'triangular':
+            self.memberships = nn.ModuleList(
+                [TriangularMF(n_sets_, uod_) for n_sets_, uod_ in zip(self.input_n_sets, self.input_uod)]
+            )
+            
+        if mf_shape == 'bell':
+            self.memberships = nn.ModuleList(
+                [BellMF(n_sets_, uod_) for n_sets_, uod_ in zip(self.input_n_sets, self.input_uod)]
+            )
+            
+        if mf_shape == 'sigmoid':
+            self.memberships = nn.ModuleList(
+                [SigmoidMF(n_sets_, uod_) for n_sets_, uod_ in zip(self.input_n_sets, self.input_uod)]
+            )
+            
+        self.antecedents = Antecedents(self.input_n_sets, and_operator, mean_rule_activation)
+        
+        if self.output_n_classes == 1:
+            self.consequents = ConsequentsRegression(self.input_n_sets)
+            self.inference = RecurrentInferenceRegression(output_activation)
+            self.recurrent = LSTMLayerRegression(self.antecedents.n_rules)
+
+        else:
+            self.consequents = ConsequentsClassification(self.input_n_sets, self.output_n_classes)
+            self.inference = RecurrentInferenceClassification()
+            self.recurrent = LSTMLayerClassification(self.antecedents.n_rules)
+        
+    def anfis_forward(self, x, h):
+        '''Makes an ANFIS forward pass using the hidden state vector.
+        '''
+        memberships = [mf(x[:, i]) for i, mf in enumerate(self.memberships)]
+        antecedents = self.antecedents(memberships)
+        consequents = self.consequents(x)
+        Y = self.inference(antecedents, consequents, h)
+        
+        return Y, consequents
+    
+    def forward(self, x, h=None, c=None):
+        if h is None and c is None:
+            batch_size = x.shape[0]
+            if self.output_n_classes == 1:
+                h_old = torch.zeros(batch_size, self.antecedents.n_rules).to(x.device)
+                c_old = torch.zeros(batch_size, self.antecedents.n_rules).to(x.device)
+                
+            else:
+                h_old = torch.zeros(self.antecedents.n_rules, batch_size, self.output_n_classes).to(x.device)
+                c_old = torch.zeros(self.antecedents.n_rules, batch_size, self.output_n_classes).to(x.device)
+        else:
+            h_old = h
+            c_old = c
+                            
+        for t in range(x.size(1)):
+            x_t = x[:, t, :]
+            Y, consequents = self.anfis_forward(x_t, h_old)
+            h_new, c_new = self.recurrent(consequents, h_old, c_old)
+            h_old = h_new
+            c_old = c_new
+            
+        return Y, (h_new, c_new)

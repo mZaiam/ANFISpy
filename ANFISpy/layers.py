@@ -204,38 +204,36 @@ class RecurrentInferenceClassification(nn.Module):
         return self.output_activation(Y)
 
 class RecurrentLayerRegression(nn.Module):
-    def __init__(self, n_rules, activation=nn.Tanh()):
+    def __init__(self, n_rules):
         '''Updates the hidden state vector of a RANFIS for regression.
 
         Args:
             n_rules:     int for number of rules in RANFIS.
-            activation:  torch activation function.
 
         Tensors:
             consequents: tensor (N, R) with the outputs of each rule.
             h_old:       tensor (N, R) with old hidden state.
-            U:           tensor (R, R) with weights for transforming old hidden state. (Opt.)
-            b:           tensor (R) with bias for the new hidden state. (Opt.)
+            U:           tensor (R, R) with weights for transforming old hidden state (opt.)
+            b:           tensor (R) with bias for the new hidden state (opt.)
             h_new:       tensor (N, R) with new hidden state.
         '''
         
         super(RecurrentLayerRegression, self).__init__()
 
-        self.activation = activation
+        self.tanh = nn.Tanh()
         self.U = nn.Parameter(torch.randn(n_rules, n_rules))
         self.b = nn.Parameter(torch.randn(n_rules))
         
     def forward(self, consequents, h_old):
         h_new = h_old @ self.U + consequents + self.b 
-        return self.activation(h_new)
+        return self.tanh(h_new)
 
 class RecurrentLayerClassification(nn.Module):
-    def __init__(self, n_rules, activation=nn.Tanh()):
+    def __init__(self, n_rules):
         '''Updates the hidden state vector of a RANFIS for classification.
 
         Args:
             n_rules:     int for number of rules in RANFIS.
-            activation:  torch activation function.
 
         Tensors:
             consequents: tensor (R, N, m) with the outputs of each rule.
@@ -247,10 +245,90 @@ class RecurrentLayerClassification(nn.Module):
 
         super(RecurrentLayerClassification, self).__init__()
 
-        self.activation = activation
+        self.tanh = nn.Tanh()
         self.U = nn.Parameter(torch.randn(n_rules, n_rules))
         self.b = nn.Parameter(torch.randn(n_rules))
         
     def forward(self, consequents, h_old):
         h_new = (h_old.transpose(0, -1) @ self.U).transpose(0, -1) + consequents + self.b.view(-1, 1, 1) 
-        return self.activation(h_new)
+        return self.tanh(h_new)
+    
+############# LSTMANFIS #############
+
+class LSTMLayerRegression(nn.Module):
+    def __init__(self, n_rules):
+        '''Updates the hidden state vector of a LSTM for regression.
+
+        Args:
+            n_rules:     int for number of rules in LSTMANFIS.
+            
+        Tensors:
+            consequents: tensor (N, R) with the outputs of each rule.
+            h_old:       tensor (N, R) with old hidden state.
+            W_:          tensors (R, R) with weights for LSTM gates (opt.)
+            b_:          tensors (R) with bias for LSTM gates (opt.)
+            h:           tensor (N, R) with new hidden state.
+            c:           tensor (N, R) with new cell state.
+        '''
+        
+        super(LSTMLayerRegression, self).__init__()
+        
+        self.sigmoid = nn.Sigmoid()
+        self.tanh = nn.Tanh()
+        
+        self.Wf = nn.Parameter(torch.randn(n_rules, n_rules))
+        self.bf = nn.Parameter(torch.randn(n_rules))
+        self.Wi = nn.Parameter(torch.randn(n_rules, n_rules))
+        self.bi = nn.Parameter(torch.randn(n_rules))
+        self.Wc = nn.Parameter(torch.randn(n_rules, n_rules))
+        self.bc = nn.Parameter(torch.randn(n_rules))
+        self.Wo = nn.Parameter(torch.randn(n_rules, n_rules))
+        self.bo = nn.Parameter(torch.randn(n_rules))
+        
+    def forward(self, consequents, h_old, c_old):
+        f = self.sigmoid(h_old @ self.Wf + consequents + self.bf)
+        i = self.sigmoid(h_old @ self.Wi + consequents + self.bi)
+        ctild = self.tanh(h_old @ self.Wc + consequents + self.bc)
+        c = f * c_old + i * ctild
+        o = self.sigmoid(h_old @ self.Wo + consequents + self.bo)
+        h = o * self.tanh(c)
+        return h, c
+
+class LSTMLayerClassification(nn.Module):
+    def __init__(self, n_rules):
+        '''Updates the hidden state vector of a LSTMANFIS for classification.
+
+        Args:
+            n_rules:     int for number of rules in LSTMANFIS.
+
+        Tensors:
+            consequents: tensor (R, N, m) with the outputs of each rule.
+            h_old:       tensor (R, N, m) with old hidden state.
+            W_:          tensors (R, R) with weights for LSTM gates (opt.).
+            b_:          tensors (R) with bias for LSTM gates (opt.).
+            h:           tensor (R, N, m) with new hidden state.
+            c:           tensor (R, N, m) with new cell state.
+        '''
+
+        super(LSTMLayerClassification, self).__init__()
+
+        self.sigmoid = nn.Sigmoid()
+        self.tanh = nn.Tanh()
+        
+        self.Wf = nn.Parameter(torch.randn(n_rules, n_rules))
+        self.bf = nn.Parameter(torch.randn(n_rules))
+        self.Wi = nn.Parameter(torch.randn(n_rules, n_rules))
+        self.bi = nn.Parameter(torch.randn(n_rules))
+        self.Wc = nn.Parameter(torch.randn(n_rules, n_rules))
+        self.bc = nn.Parameter(torch.randn(n_rules))
+        self.Wo = nn.Parameter(torch.randn(n_rules, n_rules))
+        self.bo = nn.Parameter(torch.randn(n_rules))
+        
+    def forward(self, consequents, h_old, c_old):
+        f = self.sigmoid((h_old.transpose(0, -1) @ self.Wf).transpose(0, -1) + consequents + self.bf.view(-1, 1, 1))
+        i = self.sigmoid((h_old.transpose(0, -1) @ self.Wi).transpose(0, -1) + consequents + self.bi.view(-1, 1, 1))
+        ctild = self.tanh((h_old.transpose(0, -1) @ self.Wc).transpose(0, -1) + consequents + self.bc.view(-1, 1, 1))
+        c = f * c_old + i * ctild
+        o = self.sigmoid((h_old.transpose(0, -1) @ self.Wo).transpose(0, -1) + consequents + self.bo.view(-1, 1, 1))
+        h = o * self.tanh(c)
+        return h, c
