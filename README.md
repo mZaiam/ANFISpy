@@ -2,11 +2,11 @@
 [![Python 3.7+](https://img.shields.io/badge/python-3.7+-blue.svg)]()
 
 # ANFISpy
-A Python implementation of **Adaptive Neuro-Fuzzy Inference Systems (ANFIS)**, combining neural networks and fuzzy logic for interpretable machine learning. The implementation is based on the original [ANFIS](https://ieeexplore.ieee.org/abstract/document/256541?casa_token=bWStLllx3e8AAAAA:Z7Tj7kk-7lHlGSIEVJZfJVtRi_IVpig2ANbVv6qou4Ok32c7X7Yfh8SsvIUUBjALl3dfHRgFRJs3) paper, adapting the model to perform both regression and classification tasks with customizable membership functions. A Recurrent ANFIS (RANFIS) is also implemented, suited for time series regression and classification.
+A Python implementation of **Adaptive Neuro-Fuzzy Inference Systems (ANFIS)**, combining neural networks and fuzzy logic for interpretable machine learning. The implementation is based on the original [ANFIS](https://ieeexplore.ieee.org/abstract/document/256541?casa_token=bWStLllx3e8AAAAA:Z7Tj7kk-7lHlGSIEVJZfJVtRi_IVpig2ANbVv6qou4Ok32c7X7Yfh8SsvIUUBjALl3dfHRgFRJs3) paper, adapting the model to perform both regression and classification tasks with customizable membership functions. A Recurrent ANFIS (RANFIS) and Long-Short Term memmory ANFIS (LSTM-ANFIS) are also implemented, suited for time series regression and classification.
 
 # Key Features
 - **Regression and Classification**
-- **Time Series Analysis with RANFIS**
+- **Time Series Analysis with RANFIS and LSTMANFIS**
 - **Visualization and Interpretability** via `.print_rules()`, `.plot_var()`, `.plot_rules()`  
 - **Various Membership Functions** (`GaussianMF`, `BellMF`, `TriangularMF`, `SigmoidMF`)  
 - **PyTorch Integration** (GPU acceleration, optimizers, ...) 
@@ -14,7 +14,7 @@ A Python implementation of **Adaptive Neuro-Fuzzy Inference Systems (ANFIS)**, c
 # Repository Organization
 The repository is organized in the following directories:
 - **ANFISpy**: has the implementation of the ANFIS's based models;
-- **examples**: has jupyter-notebooks with examples of how to use the model ([anfis_example.ipynb](https://github.com/mZaiam/ANFISpy/blob/main/examples/anfis_example.ipynb) and [ranfis_example.ipynb](https://github.com/mZaiam/ANFISpy/blob/main/examples/ranfis_example.ipynb)) has both a regression and a classification example);
+- **examples**: has jupyter-notebooks with examples of how to use the models;
 - **tests**: has testing files for managing the code behaviour.
 
 # Installation
@@ -79,7 +79,7 @@ variables = {
 anfis_classification = ANFIS(variables, 'bell')
 ```
 
-The notebook [anfis_example.ipynb](https://github.com/mZaiam/ANFISpy/blob/main/examples/anfis_example.ipynb) has a more detailed explanation of how to use the model, as well as the visualization methods implemented. The RANFIS model is instantiated the same way as ANFIS, and an example can be seen in [ranfis_example.ipynb](https://github.com/mZaiam/ANFISpy/blob/main/examples/ranfis_example.ipynb).
+The notebook [anfis_example.ipynb](https://github.com/mZaiam/ANFISpy/blob/main/examples/anfis_example.ipynb) has a more detailed explanation of how to use the model, as well as the visualization methods implemented. The RANFIS and LSTM-ANFIS models are instantiated the same way as ANFIS, and examples can be seen in [ranfis_example.ipynb](https://github.com/mZaiam/ANFISpy/blob/main/examples/ranfis_example.ipynb) and [lstmanfis_example.ipynb](https://github.com/mZaiam/ANFISpy/blob/main/examples/lstmanfis_example.ipynb).
 
 # Contact
 This repository was built by Matheus Zaia Monteiro. Feel free to get in contact via the following e-mail: `matheus.z.monteiro@gmail.com`.
