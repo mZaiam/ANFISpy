@@ -37,8 +37,8 @@ batch_size = 5
 seq_len = 7
 
 x = torch.randn(batch_size, seq_len, n_vars, dtype=torch.float32)
-y_reg = torch.randn(batch_size, 1, dtype=torch.float32)
-y_cla = torch.ones(batch_size, dtype=torch.long)
+y_reg = torch.randn(batch_size, seq_len, 1, dtype=torch.float32)
+y_cla = torch.ones(batch_size, seq_len, dtype=torch.long)
 
 mf_type = ['gaussian', 'bell', 'sigmoid', 'triangular']
 
@@ -64,13 +64,13 @@ def test_initialization_classification(mf_type):
 def test_regression_forward(mf_type):
     lstmanfis = LSTMANFIS(variables_reg, mf_type)
     y_pred = lstmanfis(x)[0]
-    assert y_pred.shape == (batch_size, 1)
+    assert y_pred.shape == (batch_size, seq_len, 1)
 
 @pytest.mark.parametrize("mf_type", mf_type)    
 def test_classification_forward(mf_type):
     lstmanfis = LSTMANFIS(variables_cla, mf_type)
     y_pred = lstmanfis(x)[0]
-    assert y_pred.shape == (batch_size, n_classes)
+    assert y_pred.shape == (batch_size, seq_len, n_classes)
 
 @pytest.mark.parametrize("mf_type", mf_type)
 def test_training_regression(mf_type):
@@ -97,8 +97,8 @@ def test_training_classification(mf_type):
     
     for _ in range(5):  
         optimizer.zero_grad()
-        y_pred = lstmanfis(x)[0]
-        loss = criterion(y_pred, y_cla)
+        y_pred = lstmanfis(x)[0].view(-1, n_classes)
+        loss = criterion(y_pred, y_cla.view(-1))
         loss.backward()
         optimizer.step()
         

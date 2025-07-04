@@ -228,6 +228,8 @@ class RANFIS(nn.Module):
                 h_old = torch.zeros(self.antecedents.n_rules, batch_size, self.output_n_classes).to(x.device)
         else:
             h_old = h
+            
+        Ys = []
                             
         for t in range(x.size(1)):
             x_t = x[:, t, :]
@@ -235,7 +237,10 @@ class RANFIS(nn.Module):
             h_new = self.recurrent(consequents, h_old)
             h_old = h_new
             
-        return Y, h_new
+            Ys.append(Y.unsqueeze(1))
+            
+        Ys = torch.cat(Ys, dim=1)
+        return Ys, h_new
     
     def plot_var(self, var_name, file_name=False):
         '''Plots the membership functions for a certain variable of the model.
@@ -385,7 +390,9 @@ class LSTMANFIS(nn.Module):
         else:
             h_old = h
             c_old = c
-                            
+        
+        Ys = []
+        
         for t in range(x.size(1)):
             x_t = x[:, t, :]
             Y, consequents = self.anfis_forward(x_t, h_old)
@@ -393,4 +400,7 @@ class LSTMANFIS(nn.Module):
             h_old = h_new
             c_old = c_new
             
-        return Y, (h_new, c_new)
+            Ys.append(Y.unsqueeze(1))
+            
+        Ys = torch.cat(Ys, dim=1)
+        return Ys, (h_new, c_new)
