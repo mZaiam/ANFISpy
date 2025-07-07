@@ -404,3 +404,54 @@ class LSTMANFIS(nn.Module):
             
         Ys = torch.cat(Ys, dim=1)
         return Ys, (h_new, c_new)
+    
+    def plot_var(self, var_name, file_name=False):
+        '''Plots the membership functions for a certain variable of the model.
+
+        Args:
+            var_name:  str with the name of the variable, written in the same way as given in dict variables.
+            file_name: str with the name of the file to be saved, if desired.
+        '''
+
+        return _plot_var(self, var_name, file_name)
+
+    def print_rules(self, mean_rule_activation=False):
+        '''Returns a list with the rules of the model in str format.
+        
+        Args:
+            mean_rule_activation: bool to return mean rule activation.
+            
+        Returns:
+            rules:                list of str representing the rules of the system.
+            mean:                 numpy array (R) with normalized mean rule activation.
+        '''
+        
+        return _print_rules(self, mean_rule_activation)
+    
+    def plot_rules(
+        self, 
+        var_names, 
+        n_points=1000, 
+        thr=0.8, 
+        levels=10, 
+        cmap='viridis', 
+        alpha=0.3,
+        x_data=None,
+        y_data=None,
+        file_name=None,
+    ):
+        '''Plot the projection of the fuzzy rules in a two variable space.
+        
+        Args:
+            var_names: list/tuple with the variables names.
+            n_points:  int with 
+            thr:       float between 0 and 1 with the threshold value of the fuzzy rules activation.
+            levels:    same as matplotlib.pyplot.
+            cmap:      same as matplotlib.pyplot.
+            alpha:     same as matplotlib.pyplot.
+            x_data:    data for scatter plot.
+            y_data:    data for scatter plot.
+            file_name: str with the name of the file to be saved, if desired.
+        '''
+        
+        return _plot_rules(self, var_names, n_points, thr, levels, cmap, alpha, x_data, y_data, file_name)
