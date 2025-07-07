@@ -3,6 +3,7 @@ import torch
 from ANFISpy.layers import RecurrentInferenceRegression, RecurrentInferenceClassification
 from ANFISpy.layers import RecurrentLayerRegression, RecurrentLayerClassification
 from ANFISpy.layers import LSTMLayerRegression, LSTMLayerClassification
+from ANFISpy.layers import GRULayerRegression, GRULayerClassification
 
 n_rules = 2
 n_samples = 11
@@ -81,3 +82,24 @@ def test_lstmcla_output():
     assert c.shape[0] == n_rules
     assert c.shape[1] == n_samples
     assert c.shape[2] == n_classes
+    
+def test_grureg_initialization():
+    rec = GRULayerRegression(n_rules)
+    assert isinstance(rec, torch.nn.Module)
+
+def test_grureg_output():
+    rec = GRULayerRegression(n_rules)
+    out = rec(cons_reg, h_reg)
+    assert out.shape[0] == n_samples
+    assert out.shape[1] == n_rules
+    
+def test_grucla_initialization():
+    rec = GRULayerClassification(n_rules)
+    assert isinstance(rec, torch.nn.Module)
+
+def test_grucla_output():
+    rec = GRULayerClassification(n_rules)
+    out = rec(cons_cla, h_cla)
+    assert out.shape[0] == n_rules
+    assert out.shape[1] == n_samples
+    assert out.shape[2] == n_classes

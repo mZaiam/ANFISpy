@@ -332,3 +332,71 @@ class LSTMLayerClassification(nn.Module):
         o = self.sigmoid((h_old.transpose(0, -1) @ self.Wo).transpose(0, -1) + consequents + self.bo.view(-1, 1, 1))
         h = o * self.tanh(c)
         return h, c
+    
+############# GRUANFIS #############
+
+class GRULayerRegression(nn.Module):
+    def __init__(self, n_rules):
+        '''Updates the hidden state vector of a GRU-ANFIS for regression.
+
+        Args:
+            n_rules:     int for number of rules in GRU-ANFIS.
+
+        Tensors:
+            consequents: tensor (N, R) with the outputs of each rule.
+            h_old:       tensor (N, R) with old hidden state.
+            W_:          tensors (R, R) with weights for transforming old hidden state (opt.)
+            b_:          tensors (R) with bias for the new hidden state (opt.)
+            h_new:       tensor (N, R) with new hidden state.
+        '''
+        
+        super(GRULayerRegression, self).__init__()
+
+        self.tanh = nn.Tanh()
+        self.sigmoid = nn.Sigmoid()
+        self.Wz = nn.Parameter(torch.randn(n_rules, n_rules))
+        self.bz = nn.Parameter(torch.randn(n_rules))
+        self.Wr = nn.Parameter(torch.randn(n_rules, n_rules))
+        self.br = nn.Parameter(torch.randn(n_rules))
+        self.Wh = nn.Parameter(torch.randn(n_rules, n_rules))
+        self.bh = nn.Parameter(torch.randn(n_rules))
+        
+    def forward(self, consequents, h_old):
+        z = self.sigmoid(h_old @ self.Wz + consequents + self.bz)
+        r = self.sigmoid(h_old @ self.Wr + consequents + self.br)
+        h_tild = self.tanh((r * h_old) @ self.Wh + consequents + self.bh)
+        h_new = z * h_tild + (1 - z) * h_old 
+        return h_new
+
+class GRULayerClassification(nn.Module):
+    def __init__(self, n_rules):
+        '''Updates the hidden state vector of a GRU-ANFIS for classification.
+
+        Args:
+            n_rules:     int for number of rules in GRU-RANFIS.
+
+        Tensors:
+            consequents: tensor (N, R) with the outputs of each rule.
+            h_old:       tensor (N, R) with old hidden state.
+            W_:          tensors (R, R) with weights for transforming old hidden state (opt.)
+            b_:          tensors (R) with bias for the new hidden state (opt.)
+            h_new:       tensor (N, R) with new hidden state.
+        '''
+
+        super(GRULayerClassification, self).__init__()
+
+        self.tanh = nn.Tanh()
+        self.sigmoid = nn.Sigmoid()
+        self.Wz = nn.Parameter(torch.randn(n_rules, n_rules))
+        self.bz = nn.Parameter(torch.randn(n_rules))
+        self.Wr = nn.Parameter(torch.randn(n_rules, n_rules))
+        self.br = nn.Parameter(torch.randn(n_rules))
+        self.Wh = nn.Parameter(torch.randn(n_rules, n_rules))
+        self.bh = nn.Parameter(torch.randn(n_rules))
+        
+    def forward(self, consequents, h_old):
+        z = self.sigmoid((h_old.transpose(0, -1) @ self.Wz).transpose(0, -1) + consequents + self.bz.view(-1, 1, 1))
+        r = self.sigmoid((h_old.transpose(0, -1) @ self.Wr).transpose(0, -1) + consequents + self.br.view(-1, 1, 1))
+        h_tild = self.tanh(((r * h_old).transpose(0, -1) @ self.Wh).transpose(0, -1) + consequents + self.bh.view(-1, 1, 1))
+        h_new = z * h_tild + (1 - z) * h_old
+        return h_new
