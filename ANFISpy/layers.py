@@ -175,7 +175,7 @@ class RecurrentInferenceRegression(nn.Module):
 
     def forward(self, antecedents, consequents, h):
         weights = antecedents / torch.sum(antecedents, dim=1, keepdim=True) 
-        Y = torch.sum(weights * (consequents + h), dim=1, keepdim=True) 
+        Y = torch.sum(weights * consequents + h, dim=1, keepdim=True) 
         Y = self.output_activation(Y)
         return Y
     
@@ -199,8 +199,7 @@ class RecurrentInferenceClassification(nn.Module):
         
     def forward(self, antecedents, consequents, h):
         weights = antecedents / torch.sum(antecedents, dim=1, keepdim=True)
-        consequents += h
-        Y = torch.sum(weights.unsqueeze(-1) * consequents.transpose(0, 1), dim=1)
+        Y = torch.sum(weights.unsqueeze(-1) * consequents.transpose(0, 1) + h.transpose(0, 1), dim=1)
         return self.output_activation(Y)
 
 class RecurrentLayerRegression(nn.Module):
@@ -213,19 +212,20 @@ class RecurrentLayerRegression(nn.Module):
         Tensors:
             consequents: tensor (N, R) with the outputs of each rule.
             h_old:       tensor (N, R) with old hidden state.
-            U:           tensor (R, R) with weights for transforming old hidden state (opt.)
-            b:           tensor (R) with bias for the new hidden state (opt.)
+            W_:          tensors (R, R) with weights for transforming old hidden state (opt.)
+            b_:          tensors (R) with bias for the new hidden state (opt.)
             h_new:       tensor (N, R) with new hidden state.
         '''
         
         super(RecurrentLayerRegression, self).__init__()
 
         self.tanh = nn.Tanh()
-        self.U = nn.Parameter(torch.randn(n_rules, n_rules))
+        self.Wh = nn.Parameter(torch.randn(n_rules, n_rules))
+        self.Wy = nn.Parameter(torch.randn(n_rules, n_rules))
         self.b = nn.Parameter(torch.randn(n_rules))
         
     def forward(self, consequents, h_old):
-        h_new = h_old @ self.U + consequents + self.b 
+        h_new = h_old @ self.Wh + consequents @ self.Wy + self.b 
         return self.tanh(h_new)
 
 class RecurrentLayerClassification(nn.Module):
@@ -238,19 +238,20 @@ class RecurrentLayerClassification(nn.Module):
         Tensors:
             consequents: tensor (R, N, m) with the outputs of each rule.
             h_old:       tensor (R, N, m) with old hidden state.
-            U:           tensor (R, R) with weights for transforming old hidden state (opt.).
-            b:           tensor (R) with bias for the new hidden state (opt.).
+            W_:          tensors (R, R) with weights for transforming old hidden state (opt.).
+            b_:          tensors (R) with bias for the new hidden state (opt.).
             h_new:       tensor (R, N, m) with new hidden state.
         '''
 
         super(RecurrentLayerClassification, self).__init__()
 
         self.tanh = nn.Tanh()
-        self.U = nn.Parameter(torch.randn(n_rules, n_rules))
+        self.Wh = nn.Parameter(torch.randn(n_rules, n_rules))
+        self.Wy = nn.Parameter(torch.randn(n_rules, n_rules))
         self.b = nn.Parameter(torch.randn(n_rules))
         
     def forward(self, consequents, h_old):
-        h_new = (h_old.transpose(0, -1) @ self.U).transpose(0, -1) + consequents + self.b.view(-1, 1, 1) 
+        h_new = (h_old.transpose(0, -1) @ self.Wh).transpose(0, -1) + (consequents.transpose(0, -1) @ self.Wy).transpose(0, -1) + self.b.view(-1, 1, 1) 
         return self.tanh(h_new)
     
 ############# LSTMANFIS #############
@@ -277,20 +278,24 @@ class LSTMLayerRegression(nn.Module):
         self.tanh = nn.Tanh()
         
         self.Wf = nn.Parameter(torch.randn(n_rules, n_rules))
+        self.Wfy = nn.Parameter(torch.randn(n_rules, n_rules))
         self.bf = nn.Parameter(torch.randn(n_rules))
         self.Wi = nn.Parameter(torch.randn(n_rules, n_rules))
+        self.Wiy = nn.Parameter(torch.randn(n_rules, n_rules))
         self.bi = nn.Parameter(torch.randn(n_rules))
         self.Wc = nn.Parameter(torch.randn(n_rules, n_rules))
+        self.Wcy = nn.Parameter(torch.randn(n_rules, n_rules))
         self.bc = nn.Parameter(torch.randn(n_rules))
         self.Wo = nn.Parameter(torch.randn(n_rules, n_rules))
+        self.Woy = nn.Parameter(torch.randn(n_rules, n_rules))
         self.bo = nn.Parameter(torch.randn(n_rules))
         
     def forward(self, consequents, h_old, c_old):
-        f = self.sigmoid(h_old @ self.Wf + consequents + self.bf)
-        i = self.sigmoid(h_old @ self.Wi + consequents + self.bi)
-        ctild = self.tanh(h_old @ self.Wc + consequents + self.bc)
+        f = self.sigmoid(h_old @ self.Wf + consequents @ self.Wfy + self.bf)
+        i = self.sigmoid(h_old @ self.Wi + consequents @ self.Wiy + self.bi)
+        ctild = self.tanh(h_old @ self.Wc + consequents @ self.Wcy + self.bc)
         c = f * c_old + i * ctild
-        o = self.sigmoid(h_old @ self.Wo + consequents + self.bo)
+        o = self.sigmoid(h_old @ self.Wo + consequents @ self.Woy + self.bo)
         h = o * self.tanh(c)
         return h, c
 
@@ -316,20 +321,24 @@ class LSTMLayerClassification(nn.Module):
         self.tanh = nn.Tanh()
         
         self.Wf = nn.Parameter(torch.randn(n_rules, n_rules))
+        self.Wfy = nn.Parameter(torch.randn(n_rules, n_rules))
         self.bf = nn.Parameter(torch.randn(n_rules))
         self.Wi = nn.Parameter(torch.randn(n_rules, n_rules))
+        self.Wiy = nn.Parameter(torch.randn(n_rules, n_rules))
         self.bi = nn.Parameter(torch.randn(n_rules))
         self.Wc = nn.Parameter(torch.randn(n_rules, n_rules))
+        self.Wcy = nn.Parameter(torch.randn(n_rules, n_rules))
         self.bc = nn.Parameter(torch.randn(n_rules))
         self.Wo = nn.Parameter(torch.randn(n_rules, n_rules))
+        self.Woy = nn.Parameter(torch.randn(n_rules, n_rules))
         self.bo = nn.Parameter(torch.randn(n_rules))
         
     def forward(self, consequents, h_old, c_old):
-        f = self.sigmoid((h_old.transpose(0, -1) @ self.Wf).transpose(0, -1) + consequents + self.bf.view(-1, 1, 1))
-        i = self.sigmoid((h_old.transpose(0, -1) @ self.Wi).transpose(0, -1) + consequents + self.bi.view(-1, 1, 1))
-        ctild = self.tanh((h_old.transpose(0, -1) @ self.Wc).transpose(0, -1) + consequents + self.bc.view(-1, 1, 1))
+        f = self.sigmoid((h_old.transpose(0, -1) @ self.Wf).transpose(0, -1) + (consequents.transpose(0, -1) @ self.Wfy).transpose(0, -1) + self.bf.view(-1, 1, 1))
+        i = self.sigmoid((h_old.transpose(0, -1) @ self.Wi).transpose(0, -1) + (consequents.transpose(0, -1) @ self.Wiy).transpose(0, -1) + self.bi.view(-1, 1, 1))
+        ctild = self.tanh((h_old.transpose(0, -1) @ self.Wc).transpose(0, -1) + (consequents.transpose(0, -1) @ self.Wcy).transpose(0, -1) + self.bc.view(-1, 1, 1))
         c = f * c_old + i * ctild
-        o = self.sigmoid((h_old.transpose(0, -1) @ self.Wo).transpose(0, -1) + consequents + self.bo.view(-1, 1, 1))
+        o = self.sigmoid((h_old.transpose(0, -1) @ self.Wo).transpose(0, -1) + (consequents.transpose(0, -1) @ self.Woy).transpose(0, -1) + self.bo.view(-1, 1, 1))
         h = o * self.tanh(c)
         return h, c
     
@@ -354,17 +363,21 @@ class GRULayerRegression(nn.Module):
 
         self.tanh = nn.Tanh()
         self.sigmoid = nn.Sigmoid()
+        
         self.Wz = nn.Parameter(torch.randn(n_rules, n_rules))
+        self.Wzy = nn.Parameter(torch.randn(n_rules, n_rules))
         self.bz = nn.Parameter(torch.randn(n_rules))
         self.Wr = nn.Parameter(torch.randn(n_rules, n_rules))
+        self.Wry = nn.Parameter(torch.randn(n_rules, n_rules))
         self.br = nn.Parameter(torch.randn(n_rules))
         self.Wh = nn.Parameter(torch.randn(n_rules, n_rules))
+        self.Why = nn.Parameter(torch.randn(n_rules, n_rules))
         self.bh = nn.Parameter(torch.randn(n_rules))
         
     def forward(self, consequents, h_old):
-        z = self.sigmoid(h_old @ self.Wz + consequents + self.bz)
-        r = self.sigmoid(h_old @ self.Wr + consequents + self.br)
-        h_tild = self.tanh((r * h_old) @ self.Wh + consequents + self.bh)
+        z = self.sigmoid(h_old @ self.Wz + consequents @ self.Wzy + self.bz)
+        r = self.sigmoid(h_old @ self.Wr + consequents @ self.Wry + self.br)
+        h_tild = self.tanh((r * h_old) @ self.Wh + consequents @ self.Why + self.bh)
         h_new = z * h_tild + (1 - z) * h_old 
         return h_new
 
@@ -387,16 +400,20 @@ class GRULayerClassification(nn.Module):
 
         self.tanh = nn.Tanh()
         self.sigmoid = nn.Sigmoid()
+        
         self.Wz = nn.Parameter(torch.randn(n_rules, n_rules))
+        self.Wzy = nn.Parameter(torch.randn(n_rules, n_rules))
         self.bz = nn.Parameter(torch.randn(n_rules))
         self.Wr = nn.Parameter(torch.randn(n_rules, n_rules))
+        self.Wry = nn.Parameter(torch.randn(n_rules, n_rules))
         self.br = nn.Parameter(torch.randn(n_rules))
         self.Wh = nn.Parameter(torch.randn(n_rules, n_rules))
+        self.Why = nn.Parameter(torch.randn(n_rules, n_rules))
         self.bh = nn.Parameter(torch.randn(n_rules))
         
     def forward(self, consequents, h_old):
-        z = self.sigmoid((h_old.transpose(0, -1) @ self.Wz).transpose(0, -1) + consequents + self.bz.view(-1, 1, 1))
-        r = self.sigmoid((h_old.transpose(0, -1) @ self.Wr).transpose(0, -1) + consequents + self.br.view(-1, 1, 1))
-        h_tild = self.tanh(((r * h_old).transpose(0, -1) @ self.Wh).transpose(0, -1) + consequents + self.bh.view(-1, 1, 1))
+        z = self.sigmoid((h_old.transpose(0, -1) @ self.Wz).transpose(0, -1) + (consequents.transpose(0, -1) @ self.Wzy).transpose(0, -1) + self.bz.view(-1, 1, 1))
+        r = self.sigmoid((h_old.transpose(0, -1) @ self.Wr).transpose(0, -1) + (consequents.transpose(0, -1) @ self.Wry).transpose(0, -1) + self.br.view(-1, 1, 1))
+        h_tild = self.tanh(((r * h_old).transpose(0, -1) @ self.Wh).transpose(0, -1) + (consequents.transpose(0, -1) @ self.Why).transpose(0, -1) + self.bh.view(-1, 1, 1))
         h_new = z * h_tild + (1 - z) * h_old
         return h_new

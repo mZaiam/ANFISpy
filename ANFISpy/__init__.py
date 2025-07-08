@@ -3,4 +3,4 @@ from .mfs import GaussianMF, BellMF, SigmoidMF, TriangularMF
 from .layers import Antecedents, ConsequentsClassification, ConsequentsRegression, InferenceClassification, InferenceRegression, RecurrentInferenceClassification, RecurrentInferenceRegression, RecurrentLayerRegression, RecurrentLayerClassification, LSTMLayerRegression, LSTMLayerClassification, GRULayerRegression, GRULayerClassification
 from .anfis import ANFIS, RANFIS, LSTMANFIS, GRUANFIS
 
-__version__ = "0.4.0"
+__version__ = "0.5.0"
