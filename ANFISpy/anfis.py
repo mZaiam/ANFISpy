@@ -159,8 +159,10 @@ class RANFIS(nn.Module):
                                   of classes (if the model is a regressor, insert 1). 
             mf_shape:             str containing the shape of the fuzzy sets of the system. Supports 'triangular', 'bell'
                                   'sigmoid' and 'gaussian'.
+            seq_len:              int with sequence lengths.
             and_operator:         torch function to model the AND in the antecedents calculation.
             output_activation:    torch function for output activation function.
+            bidirectional:        bool to set bidirectional on RNN.
             mean_rule_activation: bool to keep the mean rule activation values. 
         '''
 
@@ -293,8 +295,10 @@ class LSTMANFIS(nn.Module):
                                   of classes (if the model is a regressor, insert 1). 
             mf_shape:             str containing the shape of the fuzzy sets of the system. Supports 'triangular', 'bell'
                                   'sigmoid' and 'gaussian'.
+            seq_len:              int with sequence lengths.
             and_operator:         torch function to model the AND in the antecedents calculation.
             output_activation:    torch function for output activation function.
+            bidirectional:        bool to set bidirectional on LSTM.
             mean_rule_activation: bool to keep the mean rule activation values. 
         '''
 
@@ -412,7 +416,7 @@ class GRUANFIS(nn.Module):
         bidirectional=False,
         mean_rule_activation=False
     ):
-        '''Long-Short Term Memory Adaptative Neuro-Fuzzy Inference System with Takagi-Sugeno-Kang architecture. Can perform both regression and
+        '''Gated Recurrent Unit Adaptative Neuro-Fuzzy Inference System with Takagi-Sugeno-Kang architecture. Can perform both regression and
            classification.
 
         Args:
@@ -427,8 +431,10 @@ class GRUANFIS(nn.Module):
                                   of classes (if the model is a regressor, insert 1). 
             mf_shape:             str containing the shape of the fuzzy sets of the system. Supports 'triangular', 'bell'
                                   'sigmoid' and 'gaussian'.
+            seq_len:              int with sequence lengths.
             and_operator:         torch function to model the AND in the antecedents calculation.
             output_activation:    torch function for output activation function.
+            bidirectional:        bool to set bidirectional on RNN.
             mean_rule_activation: bool to keep the mean rule activation values. 
         '''
 
