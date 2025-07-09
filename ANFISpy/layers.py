@@ -96,11 +96,11 @@ class Inference(nn.Module):
         '''Performs the Takagi-Sugeno-Kang inference.
         
         Args:
-            n_classes:    int with number of classes.
+            n_classes:         int with number of classes.
             output_activation: torch function.
         
         Returns:
-            y_hat: tensor (N, m) with outputs of the system.
+            y_hat:             tensor (N, m) with outputs of the system.
         '''
         
         super(Inference, self).__init__()
@@ -123,11 +123,11 @@ class RecurrentInference(nn.Module):
         '''Performs the Takagi-Sugeno-Kang inference.
         
         Args:
-            n_classes:    int with number of classes.
+            n_classes:         int with number of classes.
             output_activation: torch function.
         
         Returns:
-            y_hat: tensor (N, L, m) with outputs of the system.
+            y_hat:             tensor (N, L, m) with outputs of the system.
         '''
         
         super(RecurrentInference, self).__init__()
