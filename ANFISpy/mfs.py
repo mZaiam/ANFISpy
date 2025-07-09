@@ -10,10 +10,7 @@ class GaussianMF(nn.Module):
             n_sets:      int for number of fuzzy sets associated to the variable.
             uod:         list/tuple with the universe of discourse of the variable.
 
-        Tensors:
-            x:           tensor (N) containing the inputs of a variable.
-            mu:          tensor (n) representing the mu parameter for the gaussian set (opt).
-            sigma:       tensor (n) representing the sigma parameter for the gaussian set (opt).
+        Returns:
             memberships: tensor (N, n) containing the membership values of the inputs.
         '''
 
@@ -29,12 +26,9 @@ class GaussianMF(nn.Module):
 
     def forward(self, x):
         x = x.reshape(-1, 1).repeat(1, self.n_sets)
-        
         mu = torch.minimum(torch.maximum(self.mu, torch.tensor(self.uod[0])), torch.tensor(self.uod[1]))
         sigma = nn.functional.relu(self.sigma) + 1e-6
-        
         memberships = torch.exp(-((x - mu) ** 2) / (2 * sigma ** 2))
-        
         return memberships
     
 class TriangularMF(nn.Module):
@@ -46,11 +40,8 @@ class TriangularMF(nn.Module):
             n_sets: int for number of fuzzy sets associated to the variable.
             uod:    list/tuple with the universe of discourse of the variable.
 
-        Tensors:
-            x:      tensor (N) containing the inputs of a variable.
-            a:      tensor (N) containing the left point of the triangle (opt).
-            b:      tensor (N) containing the center point of the triangle (opt).
-            c:      tensor (N) containing the right point of the triangle (opt).
+        Returns:
+            memberships: tensor (N, n) containing the membership values of the inputs.
         '''
 
         super(TriangularMF, self).__init__()
@@ -66,34 +57,24 @@ class TriangularMF(nn.Module):
 
     def forward(self, x, delta=10e-8):
         x = x.reshape(-1, 1).repeat(1, self.n_sets)
-        
         b = torch.minimum(torch.maximum(self.b, torch.tensor(self.uod[0])), torch.tensor(self.uod[1]))
         deltaL = nn.functional.relu(self.deltaL) + 1e-6
         deltaR = nn.functional.relu(self.deltaR) + 1e-6
-
         left = (x + deltaL - b) / (deltaL + delta)
         right = (deltaR + b - x) / (deltaR + delta)
-        
         memberships = torch.maximum(torch.minimum(left, right), torch.tensor(0.0))
-        
         return memberships
 
 class BellMF(nn.Module):
-    def __init__(self, n_sets, uod, overlap=2, param_b=2):
+    def __init__(self, n_sets, uod):
         '''Generalized bell membership function. Receives the input tensor of a variable and outputs the tensor with the 
         membership values.
 
         Args:
             n_sets:      int for number of fuzzy sets associated to the variable.
             uod:         list/tuple with the universe of discourse of the variable.
-            overlap:     int for nn.Paramater a.
-            param_b:     int for nn.Parameter b.
-    
-        Tensors:
-            x:           tensor (N) containing the inputs of a variable.
-            a:           tensor (n) representing the a parameter for the bell set (opt).
-            b:           tensor (n) representing the b parameter for the bell set (opt).
-            c:           tensor (n) representing the c parameter for the bell set (opt).
+
+        Returns:
             memberships: tensor (N, n) containing the membership values of the inputs.
         '''
 
@@ -105,34 +86,27 @@ class BellMF(nn.Module):
         step = ((uod[1] - uod[0]) / (n_sets - 1))
         
         self.c = nn.Parameter(torch.linspace(*uod, n_sets))
-        self.a = nn.Parameter((step / overlap) * torch.ones(n_sets))
-        self.b = nn.Parameter(param_b * torch.ones(n_sets))
+        self.a = nn.Parameter((step / 2) * torch.ones(n_sets))
+        self.b = nn.Parameter(step * torch.ones(n_sets))
 
     def forward(self, x):
         x = x.reshape(-1, 1).repeat(1, self.n_sets)
-        
         c = torch.minimum(torch.maximum(self.c, torch.tensor(self.uod[0])), torch.tensor(self.uod[1]))
         a = nn.functional.relu(self.a) + 1e-6
         b = nn.functional.relu(self.b) + 1e-6
-        
         memberships = 1 / (1 + torch.abs((x - c) / (a)) ** (2 * b))
-        
         return memberships
     
 class SigmoidMF(nn.Module):
-    def __init__(self, n_sets, uod, scale=10):
+    def __init__(self, n_sets, uod):
         '''Sigmoid membership function. Receives the input tensor of a variable and outputs the tensor with the 
         membership values.
 
         Args:
             n_sets:      int for number of fuzzy sets associated to the variable.
             uod:         list/tuple with the universe of discourse of the variable.
-            scale:       int for nn.Parameter a.
 
-        Tensors:
-            x:           tensor (N) containing the inputs of a variable.
-            a:           tensor (n) representing the a parameter for the sigmoid set (opt).
-            c:           tensor (n) representing the c parameter for the sigmoid set (opt).
+        Returns:
             memberships: tensor (N, n) containing the membership values of the inputs.
         '''
 
@@ -145,13 +119,10 @@ class SigmoidMF(nn.Module):
         delta = uod[1] - uod[0]
     
         self.c = nn.Parameter(torch.linspace(uod[0] + 0.05 * delta, uod[1] - 0.05 * delta, n_sets))
-        self.a = nn.Parameter((scale / step) * torch.ones(n_sets))
+        self.a = nn.Parameter(2 * step * torch.ones(n_sets))
 
     def forward(self, x):
         x = x.reshape(-1, 1).repeat(1, self.n_sets)
-        
         c = torch.minimum(torch.maximum(self.c, torch.tensor(self.uod[0])), torch.tensor(self.uod[1]))
-        
         memberships = 1 / (1 + torch.exp(- self.a * (x - c)))
-        
         return memberships

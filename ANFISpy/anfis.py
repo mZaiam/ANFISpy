@@ -5,8 +5,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from .mfs import GaussianMF, BellMF, SigmoidMF, TriangularMF
-from .layers import Antecedents, ConsequentsClassification, ConsequentsRegression, InferenceClassification, InferenceRegression
-from .layers import RecurrentInferenceClassification, RecurrentInferenceRegression, RecurrentLayerRegression, RecurrentLayerClassification, LSTMLayerRegression, LSTMLayerClassification, GRULayerRegression, GRULayerClassification
+from .layers import Antecedents, Consequents, Inference, RecurrentInference
 from .utils import _plot_var, _plot_rules, _print_rules
 
 class ANFIS(nn.Module):
@@ -72,14 +71,8 @@ class ANFIS(nn.Module):
             )
             
         self.antecedents = Antecedents(self.input_n_sets, and_operator, mean_rule_activation)
-        
-        if self.output_n_classes == 1:
-            self.consequents = ConsequentsRegression(self.input_n_sets)
-            self.inference = InferenceRegression(output_activation)
-
-        else:
-            self.consequents = ConsequentsClassification(self.input_n_sets, self.output_n_classes)
-            self.inference = InferenceClassification(output_activation)
+        self.consequents = Consequents(self.input_n_sets, self.output_n_classes)
+        self.inference = Inference(self.output_n_classes, output_activation)
         
     def forward(self, x):
         memberships = [mf(x[:, i]) for i, mf in enumerate(self.memberships)]
@@ -145,17 +138,25 @@ class RANFIS(nn.Module):
         self, 
         variables, 
         mf_shape, 
+        seq_len,
         and_operator=torch.prod, 
         output_activation=nn.Identity(),
+        bidirectional=False,
         mean_rule_activation=False
     ):
-        '''Recurrent Adaptative Neuro-Fuzzy Inference System with Takagi-Sugeno-Kang architecture. Can perform both
-        regression and classification.
+        '''Recurrent Neuro-Fuzzy Inference System with Takagi-Sugeno-Kang architecture. Can perform both regression and
+           classification.
 
         Args:
             variables:            dict with two keys, 'inputs' and 'output'. The 'input' has a dict as its value,
-                                  containing four keys: 'n_sets', 'uod', 'var_names' and 'mf_names'. They have lists as    
-                                  their values, containing, respectively: int with number of fuzzy sets associated to the                                     variable, tuple/list with the universe of discourse of the variable, str with the name of                                   the variable and list of str with the name of the fuzzy sets. The lists need to be the                                       same length, and the index of them are all associated, that is, index 0 represents the                                       information of the same variable. Now, 'output' has only the keys 'var_names' and                                           'n_classes', with a str representing the name of the variable and an int with the number                                     of classes (if the model is a regressor, insert 1). 
+                                  containing four keys: 'n_sets', 'uod', 'var_names' and 'mf_names'. They have lists as                                       
+                                  their values, containing, respectively: int with number of fuzzy sets associated to the                                     
+                                  variable, tuple/list with the universe of discourse of the variable, str with the name of                                   
+                                  the variable and list of str with the name of the fuzzy sets. The lists need to be the                                       
+                                  same length, and the index of them are all associated, that is, index 0 represents the                                       
+                                  information of the same variable. Now, 'output' has only the keys 'var_names' and                                           
+                                  'n_classes', with a str representing the name of the variable and an int with the number                                     
+                                  of classes (if the model is a regressor, insert 1). 
             mf_shape:             str containing the shape of the fuzzy sets of the system. Supports 'triangular', 'bell'
                                   'sigmoid' and 'gaussian'.
             and_operator:         torch function to model the AND in the antecedents calculation.
@@ -175,6 +176,7 @@ class RANFIS(nn.Module):
         
         self.mf_shape = mf_shape
         self.and_operator = and_operator
+        self.seq_len = seq_len
         
         if mf_shape == 'gaussian':
             self.memberships = nn.ModuleList(
@@ -197,50 +199,22 @@ class RANFIS(nn.Module):
             )
             
         self.antecedents = Antecedents(self.input_n_sets, and_operator, mean_rule_activation)
-        
-        if self.output_n_classes == 1:
-            self.consequents = ConsequentsRegression(self.input_n_sets)
-            self.inference = RecurrentInferenceRegression(output_activation)
-            self.recurrent = RecurrentLayerRegression(self.antecedents.n_rules)
-
-        else:
-            self.consequents = ConsequentsClassification(self.input_n_sets, self.output_n_classes)
-            self.inference = RecurrentInferenceClassification(output_activation)
-            self.recurrent = RecurrentLayerClassification(self.antecedents.n_rules)
-        
-    def anfis_forward(self, x, h):
-        '''Makes an ANFIS forward pass using the hidden state vector.
-        '''
-        memberships = [mf(x[:, i]) for i, mf in enumerate(self.memberships)]
-        antecedents = self.antecedents(memberships)
-        consequents = self.consequents(x)
-        Y = self.inference(antecedents, consequents, h)
-        
-        return Y, consequents
+        self.consequents = Consequents(self.input_n_sets, self.output_n_classes)
+        self.inference = RecurrentInference(self.output_n_classes, self.seq_len, output_activation)
+        self.recurrent = nn.RNN(
+            input_size=self.antecedents.n_rules * self.output_n_classes,
+            hidden_size=self.output_n_classes,
+            batch_first=True,
+            bidirectional=bidirectional,
+        )
     
     def forward(self, x, h=None):
-        if h is None:
-            batch_size = x.shape[0]
-            if self.output_n_classes == 1:
-                h_old = torch.zeros(batch_size, self.antecedents.n_rules).to(x.device)
-                
-            else:
-                h_old = torch.zeros(self.antecedents.n_rules, batch_size, self.output_n_classes).to(x.device)
-        else:
-            h_old = h
-            
-        Ys = []
-                            
-        for t in range(x.size(1)):
-            x_t = x[:, t, :]
-            Y, consequents = self.anfis_forward(x_t, h_old)
-            h_new = self.recurrent(consequents, h_old)
-            h_old = h_new
-            
-            Ys.append(Y.unsqueeze(1))
-            
-        Ys = torch.cat(Ys, dim=1)
-        return Ys, h_new
+        memberships = [mf(x[:, :, i]) for i, mf in enumerate(self.memberships)]
+        antecedents = self.antecedents(memberships)
+        consequents = self.consequents(x)
+        h, h_n = self.recurrent(consequents)
+        y_hat = self.inference(antecedents, consequents, h)
+        return y_hat, h_n
     
     def plot_var(self, var_name, file_name=False):
         '''Plots the membership functions for a certain variable of the model.
@@ -298,8 +272,10 @@ class LSTMANFIS(nn.Module):
         self, 
         variables, 
         mf_shape, 
+        seq_len,
         and_operator=torch.prod, 
         output_activation=nn.Identity(),
+        bidirectional=False,
         mean_rule_activation=False
     ):
         '''Long-Short Term Memory Adaptative Neuro-Fuzzy Inference System with Takagi-Sugeno-Kang architecture. Can perform both regression and
@@ -334,6 +310,7 @@ class LSTMANFIS(nn.Module):
         
         self.mf_shape = mf_shape
         self.and_operator = and_operator
+        self.seq_len = seq_len
         
         if mf_shape == 'gaussian':
             self.memberships = nn.ModuleList(
@@ -356,54 +333,22 @@ class LSTMANFIS(nn.Module):
             )
             
         self.antecedents = Antecedents(self.input_n_sets, and_operator, mean_rule_activation)
-        
-        if self.output_n_classes == 1:
-            self.consequents = ConsequentsRegression(self.input_n_sets)
-            self.inference = RecurrentInferenceRegression(output_activation)
-            self.recurrent = LSTMLayerRegression(self.antecedents.n_rules)
-
-        else:
-            self.consequents = ConsequentsClassification(self.input_n_sets, self.output_n_classes)
-            self.inference = RecurrentInferenceClassification()
-            self.recurrent = LSTMLayerClassification(self.antecedents.n_rules)
-        
-    def anfis_forward(self, x, h):
-        '''Makes an ANFIS forward pass using the hidden state vector.
-        '''
-        memberships = [mf(x[:, i]) for i, mf in enumerate(self.memberships)]
+        self.consequents = Consequents(self.input_n_sets, self.output_n_classes)
+        self.inference = RecurrentInference(self.output_n_classes, self.seq_len, output_activation)
+        self.recurrent = nn.LSTM(
+            input_size=self.antecedents.n_rules * self.output_n_classes,
+            hidden_size=self.output_n_classes,
+            batch_first=True,
+            bidirectional=bidirectional,
+        )
+    
+    def forward(self, x, hc=None):
+        memberships = [mf(x[:, :, i]) for i, mf in enumerate(self.memberships)]
         antecedents = self.antecedents(memberships)
         consequents = self.consequents(x)
-        Y = self.inference(antecedents, consequents, h)
-        
-        return Y, consequents
-    
-    def forward(self, x, h=None, c=None):
-        if h is None and c is None:
-            batch_size = x.shape[0]
-            if self.output_n_classes == 1:
-                h_old = torch.zeros(batch_size, self.antecedents.n_rules).to(x.device)
-                c_old = torch.zeros(batch_size, self.antecedents.n_rules).to(x.device)
-                
-            else:
-                h_old = torch.zeros(self.antecedents.n_rules, batch_size, self.output_n_classes).to(x.device)
-                c_old = torch.zeros(self.antecedents.n_rules, batch_size, self.output_n_classes).to(x.device)
-        else:
-            h_old = h
-            c_old = c
-        
-        Ys = []
-        
-        for t in range(x.size(1)):
-            x_t = x[:, t, :]
-            Y, consequents = self.anfis_forward(x_t, h_old)
-            h_new, c_new = self.recurrent(consequents, h_old, c_old)
-            h_old = h_new
-            c_old = c_new
-            
-            Ys.append(Y.unsqueeze(1))
-            
-        Ys = torch.cat(Ys, dim=1)
-        return Ys, (h_new, c_new)
+        h, (h_n, c_n) = self.recurrent(consequents)
+        y_hat = self.inference(antecedents, consequents, h)
+        return y_hat, (h_n, c_n)
     
     def plot_var(self, var_name, file_name=False):
         '''Plots the membership functions for a certain variable of the model.
@@ -461,17 +406,25 @@ class GRUANFIS(nn.Module):
         self, 
         variables, 
         mf_shape, 
+        seq_len,
         and_operator=torch.prod, 
         output_activation=nn.Identity(),
+        bidirectional=False,
         mean_rule_activation=False
     ):
-        '''Gated Recurrent Unit Adaptative Neuro-Fuzzy Inference System with Takagi-Sugeno-Kang architecture. Can perform both
-        regression and classification.
+        '''Long-Short Term Memory Adaptative Neuro-Fuzzy Inference System with Takagi-Sugeno-Kang architecture. Can perform both regression and
+           classification.
 
         Args:
             variables:            dict with two keys, 'inputs' and 'output'. The 'input' has a dict as its value,
-                                  containing four keys: 'n_sets', 'uod', 'var_names' and 'mf_names'. They have lists as    
-                                  their values, containing, respectively: int with number of fuzzy sets associated to the                                     variable, tuple/list with the universe of discourse of the variable, str with the name of                                   the variable and list of str with the name of the fuzzy sets. The lists need to be the                                       same length, and the index of them are all associated, that is, index 0 represents the                                       information of the same variable. Now, 'output' has only the keys 'var_names' and                                           'n_classes', with a str representing the name of the variable and an int with the number                                     of classes (if the model is a regressor, insert 1). 
+                                  containing four keys: 'n_sets', 'uod', 'var_names' and 'mf_names'. They have lists as                                       
+                                  their values, containing, respectively: int with number of fuzzy sets associated to the                                     
+                                  variable, tuple/list with the universe of discourse of the variable, str with the name of                                   
+                                  the variable and list of str with the name of the fuzzy sets. The lists need to be the                                       
+                                  same length, and the index of them are all associated, that is, index 0 represents the                                       
+                                  information of the same variable. Now, 'output' has only the keys 'var_names' and                                           
+                                  'n_classes', with a str representing the name of the variable and an int with the number                                     
+                                  of classes (if the model is a regressor, insert 1). 
             mf_shape:             str containing the shape of the fuzzy sets of the system. Supports 'triangular', 'bell'
                                   'sigmoid' and 'gaussian'.
             and_operator:         torch function to model the AND in the antecedents calculation.
@@ -491,6 +444,7 @@ class GRUANFIS(nn.Module):
         
         self.mf_shape = mf_shape
         self.and_operator = and_operator
+        self.seq_len = seq_len
         
         if mf_shape == 'gaussian':
             self.memberships = nn.ModuleList(
@@ -513,50 +467,22 @@ class GRUANFIS(nn.Module):
             )
             
         self.antecedents = Antecedents(self.input_n_sets, and_operator, mean_rule_activation)
-        
-        if self.output_n_classes == 1:
-            self.consequents = ConsequentsRegression(self.input_n_sets)
-            self.inference = RecurrentInferenceRegression(output_activation)
-            self.recurrent = GRULayerRegression(self.antecedents.n_rules)
-
-        else:
-            self.consequents = ConsequentsClassification(self.input_n_sets, self.output_n_classes)
-            self.inference = RecurrentInferenceClassification(output_activation)
-            self.recurrent = GRULayerClassification(self.antecedents.n_rules)
-        
-    def anfis_forward(self, x, h):
-        '''Makes an ANFIS forward pass using the hidden state vector.
-        '''
-        memberships = [mf(x[:, i]) for i, mf in enumerate(self.memberships)]
+        self.consequents = Consequents(self.input_n_sets, self.output_n_classes)
+        self.inference = RecurrentInference(self.output_n_classes, self.seq_len, output_activation)
+        self.recurrent = nn.GRU(
+            input_size=self.antecedents.n_rules * self.output_n_classes,
+            hidden_size=self.output_n_classes,
+            batch_first=True,
+            bidirectional=bidirectional,
+        )
+    
+    def forward(self, x, hc=None):
+        memberships = [mf(x[:, :, i]) for i, mf in enumerate(self.memberships)]
         antecedents = self.antecedents(memberships)
         consequents = self.consequents(x)
-        Y = self.inference(antecedents, consequents, h)
-        
-        return Y, consequents
-    
-    def forward(self, x, h=None):
-        if h is None:
-            batch_size = x.shape[0]
-            if self.output_n_classes == 1:
-                h_old = torch.zeros(batch_size, self.antecedents.n_rules).to(x.device)
-                
-            else:
-                h_old = torch.zeros(self.antecedents.n_rules, batch_size, self.output_n_classes).to(x.device)
-        else:
-            h_old = h
-            
-        Ys = []
-                            
-        for t in range(x.size(1)):
-            x_t = x[:, t, :]
-            Y, consequents = self.anfis_forward(x_t, h_old)
-            h_new = self.recurrent(consequents, h_old)
-            h_old = h_new
-            
-            Ys.append(Y.unsqueeze(1))
-            
-        Ys = torch.cat(Ys, dim=1)
-        return Ys, h_new
+        h, h_n = self.recurrent(consequents)
+        y_hat = self.inference(antecedents, consequents, h)
+        return y_hat, h_n
     
     def plot_var(self, var_name, file_name=False):
         '''Plots the membership functions for a certain variable of the model.

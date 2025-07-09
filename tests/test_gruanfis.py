@@ -44,7 +44,7 @@ mf_type = ['gaussian', 'bell', 'sigmoid', 'triangular']
 
 @pytest.mark.parametrize("mf_type", mf_type)
 def test_initialization_regression(mf_type):
-    gruanfis = GRUANFIS(variables_reg, mf_type)
+    gruanfis = GRUANFIS(variables_reg, mf_type, seq_len)
     assert len(gruanfis.input_n_sets) == 3
     assert len(gruanfis.input_uod) == 3
     assert len(gruanfis.input_var_names) == 3
@@ -53,7 +53,7 @@ def test_initialization_regression(mf_type):
     
 @pytest.mark.parametrize("mf_type", mf_type)
 def test_initialization_classification(mf_type):
-    gruanfis = GRUANFIS(variables_cla, mf_type)
+    gruanfis = GRUANFIS(variables_cla, mf_type, seq_len)
     assert len(gruanfis.input_n_sets) == 3
     assert len(gruanfis.input_uod) == 3
     assert len(gruanfis.input_var_names) == 3
@@ -62,19 +62,19 @@ def test_initialization_classification(mf_type):
 
 @pytest.mark.parametrize("mf_type", mf_type)
 def test_regression_forward(mf_type):
-    gruanfis = GRUANFIS(variables_reg, mf_type)
+    gruanfis = GRUANFIS(variables_reg, mf_type, seq_len)
     y_pred = gruanfis(x)[0]
     assert y_pred.shape == (batch_size, seq_len, 1)
 
 @pytest.mark.parametrize("mf_type", mf_type)    
 def test_classification_forward(mf_type):
-    gruanfis = GRUANFIS(variables_cla, mf_type)
+    gruanfis = GRUANFIS(variables_cla, mf_type, seq_len)
     y_pred = gruanfis(x)[0]
     assert y_pred.shape == (batch_size, seq_len, n_classes)
 
 @pytest.mark.parametrize("mf_type", mf_type)
 def test_training_regression(mf_type):
-    gruanfis = GRUANFIS(variables_reg, mf_type)
+    gruanfis = GRUANFIS(variables_reg, mf_type, seq_len)
     optimizer = torch.optim.Adam(gruanfis.parameters(), lr=0.01)
     criterion = torch.nn.MSELoss()
     
@@ -91,7 +91,7 @@ def test_training_regression(mf_type):
         
 @pytest.mark.parametrize("mf_type", mf_type)
 def test_training_classification(mf_type):
-    gruanfis = GRUANFIS(variables_cla, mf_type)
+    gruanfis = GRUANFIS(variables_cla, mf_type, seq_len)
     optimizer = torch.optim.Adam(gruanfis.parameters(), lr=0.01)
     criterion = torch.nn.CrossEntropyLoss()
     

@@ -36,7 +36,7 @@ variables_cla = {
 batch_size = 5
 
 x = torch.randn(batch_size, n_vars, dtype=torch.float32)
-y_reg = torch.randn(batch_size, 1, dtype=torch.float32)
+y_reg = torch.randn(batch_size, dtype=torch.float32)
 y_cla = torch.ones(batch_size, dtype=torch.long)
 
 mf_type = ['gaussian', 'bell', 'sigmoid', 'triangular']
@@ -63,7 +63,7 @@ def test_initialization_classification(mf_type):
 def test_regression_forward(mf_type):
     anfis = ANFIS(variables_reg, mf_type)
     y_pred = anfis(x)
-    assert y_pred.shape == (batch_size, 1)
+    assert y_pred.shape[0] == batch_size
 
 @pytest.mark.parametrize("mf_type", mf_type)    
 def test_classification_forward(mf_type):

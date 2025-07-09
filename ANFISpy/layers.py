@@ -3,6 +3,17 @@ import torch.nn as nn
 
 import itertools
 
+'''
+Notation.
+
+N: batch size;
+n: number of features;
+m: number of output classes;
+nj: number of fuzzy sets for feature j;
+R: number of rules;
+L: sequence length.
+'''
+
 class Antecedents(nn.Module):
     def __init__(self, n_sets, and_operator, mean_rule_activation=False):
         '''Calculates the antecedent values of the rules. Makes all possible combinations from the fuzzy sets defined for              
@@ -13,10 +24,8 @@ class Antecedents(nn.Module):
             and_operator:         torch function for agregation of the membership values, modeling the AND operator.
             mean_rule_activation: bool to keep mean rule activation values.
 
-        Tensors:
+        Returns:
             memberships:          tensor (n) with tensors (N, nj) containing the membership values of each variable.
-            weight:               tensor (N) representing the activation weights of a certain rule for all inputs.
-            antecedents:          tensor (N, R) with the activation weights for all rules.
         '''
 
         super(Antecedents, self).__init__()
@@ -31,389 +40,113 @@ class Antecedents(nn.Module):
     def forward(self, memberships):
         N = memberships[0].size(0)
         antecedents = []
-
         for combination in self.combinations:
             mfs = [] 
-            
             for var_index, set_index in enumerate(combination):
                 mfs.append(memberships[var_index][:, set_index])
-            
             weight = self.and_operator(torch.stack(mfs, dim=1), dim=1)
-            
             if isinstance(weight, tuple):  
                 weight = weight[0]  
-            
             antecedents.append(weight)
-
         antecedents = torch.stack(antecedents, dim=1)
         
         if self.bool:
             with torch.no_grad():
                 self.mean_rule_activation.append(torch.mean(antecedents, dim=0))    
-            
+        
         return antecedents
-    
-class ConsequentsRegression(nn.Module):
-    def __init__(self, n_sets):
-        '''Calculates the consequent values of the system for a regression problem, considering a linear combination of the            
-        input variables.
 
-        Args:
-            n_sets:       list with the number of fuzzy sets associated to each variable.
-
-        Tensors:
-            x:            tensor (N, n) containing the inputs of a variable.
-            A:            tensor (R, n) with the linear coefficients (opt).
-            b:            tensor (R) with the bias coefficients (opt).
-            consequents:  tensor (N, R) containing the consequents of each rule.
-        '''
-
-        super(ConsequentsRegression, self).__init__()
-
-        n_vars = len(n_sets)
-        n_rules = torch.prod(torch.tensor(n_sets))
-
-        self.A = nn.Parameter(torch.randn(n_rules, n_vars))
-        self.b = nn.Parameter(torch.randn(n_rules))
-
-    def forward(self, x):
-        consequents = x @ self.A.T + self.b 
-        return consequents
-    
-class ConsequentsClassification(nn.Module):
+class Consequents(nn.Module):
     def __init__(self, n_sets, n_classes):
-        '''Calculates the consequent values of the system for a classification problem, considering a linear combination of            
-        the input variables.
+        '''Calculates the consequents, considering a linear combination of the input variables.
 
         Args:
             n_sets:       list with the number of fuzzy sets associated to each variable.
-            n_classes:    int with number of n_classes.
+            n_classes:    int with number of classes.
 
-        Tensors:
-            x:            tensor (N, n) containing the inputs of a variable.
-            A:            tensor (R, m, n) with the linear coefficients (opt).
-            b:            tensor (R, m) with the bias coefficients (opt).
-            consequents:  tensor (R, N, m) containing the consequents of each rule.
+        Returns:
+            consequents:  tensor (N, R*m) or (N, L, R*m) containing the consequents of each rule.
         '''
 
-        super(ConsequentsClassification, self).__init__()
+        super(Consequents, self).__init__()
 
-        n_vars = len(n_sets)
-        n_rules = torch.prod(torch.tensor(n_sets))
+        self.n_vars = len(n_sets)
+        self.n_rules = torch.prod(torch.tensor(n_sets))
+        self.n_classes = n_classes
+        self.mode = 'regression' if n_classes == 1 else 'classification'
 
-        self.A = nn.Parameter(torch.randn(n_rules, n_classes, n_vars))
-        self.b = nn.Parameter(torch.randn(n_rules, n_classes))
-
+        if self.mode == 'regression':
+            self.linear = nn.Linear(
+                in_features=self.n_vars,
+                out_features=self.n_rules,
+            )
+        
+        if self.mode == 'classification':
+            self.linear = nn.Linear(
+                in_features=self.n_vars,
+                out_features=self.n_rules * self.n_classes,
+            )
+            
     def forward(self, x):
-        consequents = torch.matmul(self.A, x.T).permute(0, 2, 1) + self.b.unsqueeze(1)
+        consequents = self.linear(x)
         return consequents
 
-class InferenceRegression(nn.Module):
-    def __init__(self, output_activation=nn.Identity()):
-        '''Performs the Takagi-Sugeno-Kang inference for a regression problem.
+class Inference(nn.Module):
+    def __init__(self, n_classes, output_activation=nn.Identity()):
+        '''Performs the Takagi-Sugeno-Kang inference.
         
         Args:
+            n_classes:    int with number of classes.
             output_activation: torch function.
         
-        Tensors:
-            antecedents:       tensor (N, R) with the weights of activation of each rule.
-            consequents:       tensor (N, R) with the outputs of each rule.
-            Y:                 tensor (N) with the outputs of the system.
-            output_activation: torch function.
+        Returns:
+            y_hat: tensor (N, m) with outputs of the system.
         '''
         
-        super(InferenceRegression, self).__init__()
+        super(Inference, self).__init__()
         
+        self.n_classes = n_classes
+        self.mode = 'regression' if n_classes == 1 else 'classification'
         self.output_activation = output_activation
 
     def forward(self, antecedents, consequents):
-        Y = torch.sum(antecedents * consequents, dim=1, keepdim=True) / torch.sum(antecedents, dim=1, keepdim=True)
-        Y = self.output_activation(Y)
-        return Y
+        w = antecedents / torch.sum(antecedents, dim=1, keepdim=True)
+        if self.mode == 'classification':
+            n_rules = w.shape[1]
+            w = w.unsqueeze(-1)
+            consequents = consequents.view(-1, n_rules, self.n_classes)
+        y_hat = torch.sum(w * consequents, dim=1, keepdim=True).squeeze()
+        return self.output_activation(y_hat)
     
-class InferenceClassification(nn.Module):
-    def __init__(self, output_activation=nn.Identity()):
-        '''Performs the Takagi-Sugeno-Kang inference for a classification problem.
-
+class RecurrentInference(nn.Module):
+    def __init__(self, n_classes, seq_len, output_activation=nn.Identity()):
+        '''Performs the Takagi-Sugeno-Kang inference.
+        
         Args:
+            n_classes:    int with number of classes.
             output_activation: torch function.
         
-        Tensors:
-            antecedents:       tensor (N, R) with the weights of activation of each rule.
-            consequents:       tensor (R, N, m) with the outputs of each rule.
-            Y:                 tensor (N, m) with the outputs of the system.
-        '''
-
-        super(InferenceClassification, self).__init__()
-        
-        self.output_activation = output_activation
-        
-    def forward(self, antecedents, consequents):
-        Y = torch.sum(antecedents.T.unsqueeze(-1) * consequents, dim=0) / torch.sum(antecedents, dim=1, keepdim=True)
-        return self.output_activation(Y)
-
-############# RANFIS #############
-    
-class RecurrentInferenceRegression(nn.Module):
-    def __init__(self, output_activation=nn.Identity()):
-        '''Performs the Takagi-Sugeno-Kang inference for RANFIS in a regression problem.
-        
-        Args:
-            output_activation: torch activation function.
-        
-        Tensors:
-            antecedents:       tensor (N, R) with the weights of activation of each rule.
-            consequents:       tensor (N, R) with the outputs of each rule.
-            h:                 tensor (R) with hidden state.
-            Y:                 tensor (N) with the outputs of the system.
-            output_activation: torch function.
+        Returns:
+            y_hat: tensor (N, L, m) with outputs of the system.
         '''
         
-        super(RecurrentInferenceRegression, self).__init__()
+        super(RecurrentInference, self).__init__()
         
+        self.n_classes = n_classes
+        self.seq_len = seq_len
+        self.mode = 'regression' if n_classes == 1 else 'classification'
         self.output_activation = output_activation
 
-    def forward(self, antecedents, consequents, h):
-        weights = antecedents / torch.sum(antecedents, dim=1, keepdim=True) 
-        Y = torch.sum(weights * consequents + h, dim=1, keepdim=True) 
-        Y = self.output_activation(Y)
-        return Y
-    
-class RecurrentInferenceClassification(nn.Module):
-    def __init__(self, output_activation=nn.Identity()):
-        '''Performs the Takagi-Sugeno-Kang inference for RANFIS in a classification problem.
-
-        Args:
-            output_activation: torch activation function.
-
-        Tensors:
-            antecedents: tensor (N, R) with the weights of activation of each rule.
-            consequents: tensor (R, N, m) with the outputs of each rule.
-            h:           tensor (R) with hidden state.
-            Y:           tensor (N, m) with the outputs of the system.
-        '''
-
-        super(RecurrentInferenceClassification, self).__init__()
-
-        self.output_activation = output_activation
-        
-    def forward(self, antecedents, consequents, h):
-        weights = antecedents / torch.sum(antecedents, dim=1, keepdim=True)
-        Y = torch.sum(weights.unsqueeze(-1) * consequents.transpose(0, 1) + h.transpose(0, 1), dim=1)
-        return self.output_activation(Y)
-
-class RecurrentLayerRegression(nn.Module):
-    def __init__(self, n_rules):
-        '''Updates the hidden state vector of a RANFIS for regression.
-
-        Args:
-            n_rules:     int for number of rules in RANFIS.
-
-        Tensors:
-            consequents: tensor (N, R) with the outputs of each rule.
-            h_old:       tensor (N, R) with old hidden state.
-            W_:          tensors (R, R) with weights for transforming old hidden state (opt.)
-            b_:          tensors (R) with bias for the new hidden state (opt.)
-            h_new:       tensor (N, R) with new hidden state.
-        '''
-        
-        super(RecurrentLayerRegression, self).__init__()
-
-        self.tanh = nn.Tanh()
-        self.Wh = nn.Parameter(torch.randn(n_rules, n_rules))
-        self.Wy = nn.Parameter(torch.randn(n_rules, n_rules))
-        self.b = nn.Parameter(torch.randn(n_rules))
-        
-    def forward(self, consequents, h_old):
-        h_new = h_old @ self.Wh + consequents @ self.Wy + self.b 
-        return self.tanh(h_new)
-
-class RecurrentLayerClassification(nn.Module):
-    def __init__(self, n_rules):
-        '''Updates the hidden state vector of a RANFIS for classification.
-
-        Args:
-            n_rules:     int for number of rules in RANFIS.
-
-        Tensors:
-            consequents: tensor (R, N, m) with the outputs of each rule.
-            h_old:       tensor (R, N, m) with old hidden state.
-            W_:          tensors (R, R) with weights for transforming old hidden state (opt.).
-            b_:          tensors (R) with bias for the new hidden state (opt.).
-            h_new:       tensor (R, N, m) with new hidden state.
-        '''
-
-        super(RecurrentLayerClassification, self).__init__()
-
-        self.tanh = nn.Tanh()
-        self.Wh = nn.Parameter(torch.randn(n_rules, n_rules))
-        self.Wy = nn.Parameter(torch.randn(n_rules, n_rules))
-        self.b = nn.Parameter(torch.randn(n_rules))
-        
-    def forward(self, consequents, h_old):
-        h_new = (h_old.transpose(0, -1) @ self.Wh).transpose(0, -1) + (consequents.transpose(0, -1) @ self.Wy).transpose(0, -1) + self.b.view(-1, 1, 1) 
-        return self.tanh(h_new)
-    
-############# LSTMANFIS #############
-
-class LSTMLayerRegression(nn.Module):
-    def __init__(self, n_rules):
-        '''Updates the hidden state vector of a LSTM for regression.
-
-        Args:
-            n_rules:     int for number of rules in LSTMANFIS.
-            
-        Tensors:
-            consequents: tensor (N, R) with the outputs of each rule.
-            h_old:       tensor (N, R) with old hidden state.
-            W_:          tensors (R, R) with weights for LSTM gates (opt.)
-            b_:          tensors (R) with bias for LSTM gates (opt.)
-            h:           tensor (N, R) with new hidden state.
-            c:           tensor (N, R) with new cell state.
-        '''
-        
-        super(LSTMLayerRegression, self).__init__()
-        
-        self.sigmoid = nn.Sigmoid()
-        self.tanh = nn.Tanh()
-        
-        self.Wf = nn.Parameter(torch.randn(n_rules, n_rules))
-        self.Wfy = nn.Parameter(torch.randn(n_rules, n_rules))
-        self.bf = nn.Parameter(torch.randn(n_rules))
-        self.Wi = nn.Parameter(torch.randn(n_rules, n_rules))
-        self.Wiy = nn.Parameter(torch.randn(n_rules, n_rules))
-        self.bi = nn.Parameter(torch.randn(n_rules))
-        self.Wc = nn.Parameter(torch.randn(n_rules, n_rules))
-        self.Wcy = nn.Parameter(torch.randn(n_rules, n_rules))
-        self.bc = nn.Parameter(torch.randn(n_rules))
-        self.Wo = nn.Parameter(torch.randn(n_rules, n_rules))
-        self.Woy = nn.Parameter(torch.randn(n_rules, n_rules))
-        self.bo = nn.Parameter(torch.randn(n_rules))
-        
-    def forward(self, consequents, h_old, c_old):
-        f = self.sigmoid(h_old @ self.Wf + consequents @ self.Wfy + self.bf)
-        i = self.sigmoid(h_old @ self.Wi + consequents @ self.Wiy + self.bi)
-        ctild = self.tanh(h_old @ self.Wc + consequents @ self.Wcy + self.bc)
-        c = f * c_old + i * ctild
-        o = self.sigmoid(h_old @ self.Wo + consequents @ self.Woy + self.bo)
-        h = o * self.tanh(c)
-        return h, c
-
-class LSTMLayerClassification(nn.Module):
-    def __init__(self, n_rules):
-        '''Updates the hidden state vector of a LSTMANFIS for classification.
-
-        Args:
-            n_rules:     int for number of rules in LSTMANFIS.
-
-        Tensors:
-            consequents: tensor (R, N, m) with the outputs of each rule.
-            h_old:       tensor (R, N, m) with old hidden state.
-            W_:          tensors (R, R) with weights for LSTM gates (opt.).
-            b_:          tensors (R) with bias for LSTM gates (opt.).
-            h:           tensor (R, N, m) with new hidden state.
-            c:           tensor (R, N, m) with new cell state.
-        '''
-
-        super(LSTMLayerClassification, self).__init__()
-
-        self.sigmoid = nn.Sigmoid()
-        self.tanh = nn.Tanh()
-        
-        self.Wf = nn.Parameter(torch.randn(n_rules, n_rules))
-        self.Wfy = nn.Parameter(torch.randn(n_rules, n_rules))
-        self.bf = nn.Parameter(torch.randn(n_rules))
-        self.Wi = nn.Parameter(torch.randn(n_rules, n_rules))
-        self.Wiy = nn.Parameter(torch.randn(n_rules, n_rules))
-        self.bi = nn.Parameter(torch.randn(n_rules))
-        self.Wc = nn.Parameter(torch.randn(n_rules, n_rules))
-        self.Wcy = nn.Parameter(torch.randn(n_rules, n_rules))
-        self.bc = nn.Parameter(torch.randn(n_rules))
-        self.Wo = nn.Parameter(torch.randn(n_rules, n_rules))
-        self.Woy = nn.Parameter(torch.randn(n_rules, n_rules))
-        self.bo = nn.Parameter(torch.randn(n_rules))
-        
-    def forward(self, consequents, h_old, c_old):
-        f = self.sigmoid((h_old.transpose(0, -1) @ self.Wf).transpose(0, -1) + (consequents.transpose(0, -1) @ self.Wfy).transpose(0, -1) + self.bf.view(-1, 1, 1))
-        i = self.sigmoid((h_old.transpose(0, -1) @ self.Wi).transpose(0, -1) + (consequents.transpose(0, -1) @ self.Wiy).transpose(0, -1) + self.bi.view(-1, 1, 1))
-        ctild = self.tanh((h_old.transpose(0, -1) @ self.Wc).transpose(0, -1) + (consequents.transpose(0, -1) @ self.Wcy).transpose(0, -1) + self.bc.view(-1, 1, 1))
-        c = f * c_old + i * ctild
-        o = self.sigmoid((h_old.transpose(0, -1) @ self.Wo).transpose(0, -1) + (consequents.transpose(0, -1) @ self.Woy).transpose(0, -1) + self.bo.view(-1, 1, 1))
-        h = o * self.tanh(c)
-        return h, c
-    
-############# GRUANFIS #############
-
-class GRULayerRegression(nn.Module):
-    def __init__(self, n_rules):
-        '''Updates the hidden state vector of a GRU-ANFIS for regression.
-
-        Args:
-            n_rules:     int for number of rules in GRU-ANFIS.
-
-        Tensors:
-            consequents: tensor (N, R) with the outputs of each rule.
-            h_old:       tensor (N, R) with old hidden state.
-            W_:          tensors (R, R) with weights for transforming old hidden state (opt.)
-            b_:          tensors (R) with bias for the new hidden state (opt.)
-            h_new:       tensor (N, R) with new hidden state.
-        '''
-        
-        super(GRULayerRegression, self).__init__()
-
-        self.tanh = nn.Tanh()
-        self.sigmoid = nn.Sigmoid()
-        
-        self.Wz = nn.Parameter(torch.randn(n_rules, n_rules))
-        self.Wzy = nn.Parameter(torch.randn(n_rules, n_rules))
-        self.bz = nn.Parameter(torch.randn(n_rules))
-        self.Wr = nn.Parameter(torch.randn(n_rules, n_rules))
-        self.Wry = nn.Parameter(torch.randn(n_rules, n_rules))
-        self.br = nn.Parameter(torch.randn(n_rules))
-        self.Wh = nn.Parameter(torch.randn(n_rules, n_rules))
-        self.Why = nn.Parameter(torch.randn(n_rules, n_rules))
-        self.bh = nn.Parameter(torch.randn(n_rules))
-        
-    def forward(self, consequents, h_old):
-        z = self.sigmoid(h_old @ self.Wz + consequents @ self.Wzy + self.bz)
-        r = self.sigmoid(h_old @ self.Wr + consequents @ self.Wry + self.br)
-        h_tild = self.tanh((r * h_old) @ self.Wh + consequents @ self.Why + self.bh)
-        h_new = z * h_tild + (1 - z) * h_old 
-        return h_new
-
-class GRULayerClassification(nn.Module):
-    def __init__(self, n_rules):
-        '''Updates the hidden state vector of a GRU-ANFIS for classification.
-
-        Args:
-            n_rules:     int for number of rules in GRU-RANFIS.
-
-        Tensors:
-            consequents: tensor (N, R) with the outputs of each rule.
-            h_old:       tensor (N, R) with old hidden state.
-            W_:          tensors (R, R) with weights for transforming old hidden state (opt.)
-            b_:          tensors (R) with bias for the new hidden state (opt.)
-            h_new:       tensor (N, R) with new hidden state.
-        '''
-
-        super(GRULayerClassification, self).__init__()
-
-        self.tanh = nn.Tanh()
-        self.sigmoid = nn.Sigmoid()
-        
-        self.Wz = nn.Parameter(torch.randn(n_rules, n_rules))
-        self.Wzy = nn.Parameter(torch.randn(n_rules, n_rules))
-        self.bz = nn.Parameter(torch.randn(n_rules))
-        self.Wr = nn.Parameter(torch.randn(n_rules, n_rules))
-        self.Wry = nn.Parameter(torch.randn(n_rules, n_rules))
-        self.br = nn.Parameter(torch.randn(n_rules))
-        self.Wh = nn.Parameter(torch.randn(n_rules, n_rules))
-        self.Why = nn.Parameter(torch.randn(n_rules, n_rules))
-        self.bh = nn.Parameter(torch.randn(n_rules))
-        
-    def forward(self, consequents, h_old):
-        z = self.sigmoid((h_old.transpose(0, -1) @ self.Wz).transpose(0, -1) + (consequents.transpose(0, -1) @ self.Wzy).transpose(0, -1) + self.bz.view(-1, 1, 1))
-        r = self.sigmoid((h_old.transpose(0, -1) @ self.Wr).transpose(0, -1) + (consequents.transpose(0, -1) @ self.Wry).transpose(0, -1) + self.br.view(-1, 1, 1))
-        h_tild = self.tanh(((r * h_old).transpose(0, -1) @ self.Wh).transpose(0, -1) + (consequents.transpose(0, -1) @ self.Why).transpose(0, -1) + self.bh.view(-1, 1, 1))
-        h_new = z * h_tild + (1 - z) * h_old
-        return h_new
+    def forward(self, antecedents, consequents, h=None):
+        w = antecedents / torch.sum(antecedents, dim=1, keepdim=True)
+        n_rules = w.shape[1]
+        if self.mode == 'regression':
+            consequents = consequents.view(antecedents.shape)
+        if self.mode == 'classification':
+            w = w.unsqueeze(-1)
+            consequents = consequents.view(-1, n_rules, self.n_classes)
+        y_hat = torch.sum(w * consequents, dim=1, keepdim=True).view(-1, self.seq_len, self.n_classes)
+        if h is None:
+            h = torch.zeros_like(y_hat)
+        y_hat = y_hat + h
+        return self.output_activation(y_hat)
