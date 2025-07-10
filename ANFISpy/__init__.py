@@ -3,4 +3,4 @@ from .mfs import GaussianMF, BellMF, SigmoidMF, TriangularMF
 from .layers import Antecedents, Consequents, Inference, RecurrentInference
 from .anfis import ANFIS, RANFIS, LSTMANFIS, GRUANFIS
 
-__version__ = "0.6.1"
+__version__ = "0.6.2"

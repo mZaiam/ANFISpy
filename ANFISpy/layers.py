@@ -24,14 +24,16 @@ class Antecedents(nn.Module):
             and_operator:         torch function for agregation of the membership values, modeling the AND operator.
             mean_rule_activation: bool to keep mean rule activation values.
 
-        Returns:
+        Tensors:
             memberships:          tensor (n) with tensors (N, nj) containing the membership values of each variable.
+            weight:               tensor (N) representing the activation weights of a certain rule for all inputs.
+            antecedents:          tensor (N, R) with the activation weights for all rules.
         '''
 
         super(Antecedents, self).__init__()
 
         self.n_sets = n_sets
-        self.n_rules = torch.prod(torch.tensor(n_sets))
+        self.n_rules = torch.prod(torch.tensor(n_sets)).item()
         self.and_operator = and_operator
         self.combinations = list(itertools.product(*[range(i) for i in n_sets]))
         self.mean_rule_activation = []
@@ -64,14 +66,15 @@ class Consequents(nn.Module):
             n_sets:       list with the number of fuzzy sets associated to each variable.
             n_classes:    int with number of classes.
 
-        Returns:
-            consequents:  tensor (N, R*m) or (N, L, R*m) containing the consequents of each rule.
+        Tensors:
+            x:            tensor (N, n) containing the inputs of a variable.
+            consequents:  tensor (N, R) containing the consequents of each rule.
         '''
 
         super(Consequents, self).__init__()
 
         self.n_vars = len(n_sets)
-        self.n_rules = torch.prod(torch.tensor(n_sets))
+        self.n_rules = torch.prod(torch.tensor(n_sets)).item()
         self.n_classes = n_classes
         self.mode = 'regression' if n_classes == 1 else 'classification'
 
@@ -96,11 +99,14 @@ class Inference(nn.Module):
         '''Performs the Takagi-Sugeno-Kang inference.
         
         Args:
-            n_classes:         int with number of classes.
+            n_classes:    int with number of classes.
             output_activation: torch function.
         
-        Returns:
-            y_hat:             tensor (N, m) with outputs of the system.
+        Tensors:
+            antecedents:       tensor (N, R) with the weights of activation of each rule.
+            consequents:       tensor (N, R) with the outputs of each rule.
+            Y:                 tensor (N) with the outputs of the system.
+            output_activation: torch function.
         '''
         
         super(Inference, self).__init__()
@@ -138,15 +144,16 @@ class RecurrentInference(nn.Module):
         self.output_activation = output_activation
 
     def forward(self, antecedents, consequents, h=None):
+        if h is None:
+            h = torch.zeros_like(consequents)
         w = antecedents / torch.sum(antecedents, dim=1, keepdim=True)
         n_rules = w.shape[1]
         if self.mode == 'regression':
+            consequents = consequents + h
             consequents = consequents.view(antecedents.shape)
         if self.mode == 'classification':
             w = w.unsqueeze(-1)
+            consequents = consequents + h
             consequents = consequents.view(-1, n_rules, self.n_classes)
         y_hat = torch.sum(w * consequents, dim=1, keepdim=True).view(-1, self.seq_len, self.n_classes)
-        if h is None:
-            h = torch.zeros_like(y_hat)
-        y_hat = y_hat + h
         return self.output_activation(y_hat)

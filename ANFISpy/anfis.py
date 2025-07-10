@@ -205,7 +205,7 @@ class RANFIS(nn.Module):
         self.inference = RecurrentInference(self.output_n_classes, self.seq_len, output_activation)
         self.recurrent = nn.RNN(
             input_size=self.antecedents.n_rules * self.output_n_classes,
-            hidden_size=self.output_n_classes,
+            hidden_size=self.antecedents.n_rules * self.output_n_classes,
             batch_first=True,
             bidirectional=bidirectional,
         )
@@ -341,7 +341,7 @@ class LSTMANFIS(nn.Module):
         self.inference = RecurrentInference(self.output_n_classes, self.seq_len, output_activation)
         self.recurrent = nn.LSTM(
             input_size=self.antecedents.n_rules * self.output_n_classes,
-            hidden_size=self.output_n_classes,
+            hidden_size=self.antecedents.n_rules * self.output_n_classes,
             batch_first=True,
             bidirectional=bidirectional,
         )
@@ -477,7 +477,7 @@ class GRUANFIS(nn.Module):
         self.inference = RecurrentInference(self.output_n_classes, self.seq_len, output_activation)
         self.recurrent = nn.GRU(
             input_size=self.antecedents.n_rules * self.output_n_classes,
-            hidden_size=self.output_n_classes,
+            hidden_size=self.antecedents.n_rules * self.output_n_classes,
             batch_first=True,
             bidirectional=bidirectional,
         )

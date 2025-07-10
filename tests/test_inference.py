@@ -13,8 +13,8 @@ cons_reg = torch.randn(n_samples, n_rules)
 cons_cla = torch.randn(n_samples, n_rules * n_classes)
 cons_rec_reg = torch.randn(n_samples, seq_len, n_rules)
 cons_rec_cla = torch.randn(n_samples, seq_len, n_rules * n_classes)
-h_reg = torch.randn(n_samples, seq_len, 1)
-h_cla = torch.randn(n_samples, seq_len, n_classes)
+h_reg = torch.randn(n_samples, seq_len, n_rules)
+h_cla = torch.randn(n_samples, seq_len, n_rules * n_classes)
 
 def test_inferencereg_output():
     inf = Inference(n_classes=1)
