@@ -41,40 +41,41 @@ y_reg = torch.randn(batch_size, seq_len, 1, dtype=torch.float32)
 y_cla = torch.ones(batch_size, seq_len, dtype=torch.long)
 
 mf_type = ['gaussian', 'bell', 'sigmoid', 'triangular']
+bidirectional = [False, True]
 
-@pytest.mark.parametrize("mf_type", mf_type)
-def test_initialization_regression(mf_type):
-    ranfis = RANFIS(variables_reg, mf_type, seq_len)
+@pytest.mark.parametrize("mf_type,bidirectional", [(mf, bid) for mf in mf_type for bid in bidirectional])
+def test_initialization_regression(mf_type, bidirectional):
+    ranfis = RANFIS(variables_reg, mf_type, seq_len, bidirectional=bidirectional)
     assert len(ranfis.input_n_sets) == 3
     assert len(ranfis.input_uod) == 3
     assert len(ranfis.input_var_names) == 3
     assert ranfis.output_var_names == 'd'
     assert ranfis.output_n_classes == 1
     
-@pytest.mark.parametrize("mf_type", mf_type)
-def test_initialization_classification(mf_type):
-    ranfis = RANFIS(variables_cla, mf_type, seq_len)
+@pytest.mark.parametrize("mf_type,bidirectional", [(mf, bid) for mf in mf_type for bid in bidirectional])
+def test_initialization_classification(mf_type, bidirectional):
+    ranfis = RANFIS(variables_cla, mf_type, seq_len, bidirectional=bidirectional)
     assert len(ranfis.input_n_sets) == 3
     assert len(ranfis.input_uod) == 3
     assert len(ranfis.input_var_names) == 3
     assert ranfis.output_var_names == 'd'
     assert ranfis.output_n_classes == n_classes
 
-@pytest.mark.parametrize("mf_type", mf_type)
-def test_regression_forward(mf_type):
-    ranfis = RANFIS(variables_reg, mf_type, seq_len)
+@pytest.mark.parametrize("mf_type,bidirectional", [(mf, bid) for mf in mf_type for bid in bidirectional])
+def test_regression_forward(mf_type, bidirectional):
+    ranfis = RANFIS(variables_reg, mf_type, seq_len, bidirectional=bidirectional)
     y_pred = ranfis(x)[0]
     assert y_pred.shape == (batch_size, seq_len, 1)
 
-@pytest.mark.parametrize("mf_type", mf_type)    
-def test_classification_forward(mf_type):
-    ranfis = RANFIS(variables_cla, mf_type, seq_len)
+@pytest.mark.parametrize("mf_type,bidirectional", [(mf, bid) for mf in mf_type for bid in bidirectional])    
+def test_classification_forward(mf_type, bidirectional):
+    ranfis = RANFIS(variables_cla, mf_type, seq_len, bidirectional=bidirectional)
     y_pred = ranfis(x)[0]
     assert y_pred.shape == (batch_size, seq_len, n_classes)
 
-@pytest.mark.parametrize("mf_type", mf_type)
-def test_training_regression(mf_type):
-    ranfis = RANFIS(variables_reg, mf_type, seq_len)
+@pytest.mark.parametrize("mf_type,bidirectional", [(mf, bid) for mf in mf_type for bid in bidirectional])
+def test_training_regression(mf_type, bidirectional):
+    ranfis = RANFIS(variables_reg, mf_type, seq_len, bidirectional=bidirectional)
     optimizer = torch.optim.Adam(ranfis.parameters(), lr=0.01)
     criterion = torch.nn.MSELoss()
     
@@ -89,9 +90,9 @@ def test_training_regression(mf_type):
         assert param.grad is not None
         assert not torch.all(param.grad == 0)
         
-@pytest.mark.parametrize("mf_type", mf_type)
-def test_training_classification(mf_type):
-    ranfis = RANFIS(variables_cla, mf_type, seq_len)
+@pytest.mark.parametrize("mf_type,bidirectional", [(mf, bid) for mf in mf_type for bid in bidirectional])
+def test_training_classification(mf_type, bidirectional):
+    ranfis = RANFIS(variables_cla, mf_type, seq_len, bidirectional=bidirectional)
     optimizer = torch.optim.Adam(ranfis.parameters(), lr=0.01)
     criterion = torch.nn.CrossEntropyLoss()
     

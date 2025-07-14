@@ -125,11 +125,13 @@ class Inference(nn.Module):
         return self.output_activation(y_hat)
     
 class RecurrentInference(nn.Module):
-    def __init__(self, n_classes, seq_len, output_activation=nn.Identity()):
-        '''Performs the Takagi-Sugeno-Kang inference.
+    def __init__(self, n_classes, seq_len, bidirectional=False, output_activation=nn.Identity()):
+        '''Performs the Takagi-Sugeno-Kang inference adapted for recurrent models.
         
         Args:
             n_classes:         int with number of classes.
+            seq_len:           int with sequence length.
+            bidirectional:     bool for directionality of model.
             output_activation: torch function.
         
         Returns:
@@ -140,6 +142,7 @@ class RecurrentInference(nn.Module):
         
         self.n_classes = n_classes
         self.seq_len = seq_len
+        self.bidirectional = bidirectional
         self.mode = 'regression' if n_classes == 1 else 'classification'
         self.output_activation = output_activation
 
@@ -149,9 +152,13 @@ class RecurrentInference(nn.Module):
         w = antecedents / torch.sum(antecedents, dim=1, keepdim=True)
         n_rules = w.shape[1]
         if self.mode == 'regression':
+            if self.bidirectional:
+                h = h.view(-1, self.seq_len, 2, n_rules).mean(dim=2)
             consequents = consequents + h
             consequents = consequents.view(antecedents.shape)
         if self.mode == 'classification':
+            if self.bidirectional:
+                h = h.view(-1, self.seq_len, 2, self.n_classes * n_rules).mean(dim=2)
             w = w.unsqueeze(-1)
             consequents = consequents + h
             consequents = consequents.view(-1, n_rules, self.n_classes)

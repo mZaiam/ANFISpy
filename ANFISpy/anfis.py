@@ -202,7 +202,12 @@ class RANFIS(nn.Module):
             
         self.antecedents = Antecedents(self.input_n_sets, and_operator, mean_rule_activation)
         self.consequents = Consequents(self.input_n_sets, self.output_n_classes)
-        self.inference = RecurrentInference(self.output_n_classes, self.seq_len, output_activation)
+        self.inference = RecurrentInference(
+            self.output_n_classes, 
+            self.seq_len, 
+            bidirectional=bidirectional,
+            output_activation=output_activation,
+        )
         self.recurrent = nn.RNN(
             input_size=self.antecedents.n_rules * self.output_n_classes,
             hidden_size=self.antecedents.n_rules * self.output_n_classes,
@@ -338,7 +343,12 @@ class LSTMANFIS(nn.Module):
             
         self.antecedents = Antecedents(self.input_n_sets, and_operator, mean_rule_activation)
         self.consequents = Consequents(self.input_n_sets, self.output_n_classes)
-        self.inference = RecurrentInference(self.output_n_classes, self.seq_len, output_activation)
+        self.inference = RecurrentInference(
+            self.output_n_classes, 
+            self.seq_len, 
+            bidirectional=bidirectional,
+            output_activation=output_activation,
+        )
         self.recurrent = nn.LSTM(
             input_size=self.antecedents.n_rules * self.output_n_classes,
             hidden_size=self.antecedents.n_rules * self.output_n_classes,
@@ -434,7 +444,7 @@ class GRUANFIS(nn.Module):
             seq_len:              int with sequence lengths.
             and_operator:         torch function to model the AND in the antecedents calculation.
             output_activation:    torch function for output activation function.
-            bidirectional:        bool to set bidirectional on RNN.
+            bidirectional:        bool to set bidirectional on GRU.
             mean_rule_activation: bool to keep the mean rule activation values. 
         '''
 
@@ -474,7 +484,12 @@ class GRUANFIS(nn.Module):
             
         self.antecedents = Antecedents(self.input_n_sets, and_operator, mean_rule_activation)
         self.consequents = Consequents(self.input_n_sets, self.output_n_classes)
-        self.inference = RecurrentInference(self.output_n_classes, self.seq_len, output_activation)
+        self.inference = RecurrentInference(
+            self.output_n_classes, 
+            self.seq_len, 
+            bidirectional=bidirectional,
+            output_activation=output_activation,
+        )
         self.recurrent = nn.GRU(
             input_size=self.antecedents.n_rules * self.output_n_classes,
             hidden_size=self.antecedents.n_rules * self.output_n_classes,
