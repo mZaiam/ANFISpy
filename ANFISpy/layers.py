@@ -14,48 +14,58 @@ R: number of rules;
 L: sequence length.
 '''
 
-class Antecedents(nn.Module):
-    def __init__(self, n_sets, and_operator, mean_rule_activation=False):
-        '''Calculates the antecedent values of the rules. Makes all possible combinations from the fuzzy sets defined for              
-        each variable, considering rules of the form: var1 is set1 and ... and varn is setn.
+class Antecedents(torch.nn.Module):
+    def __init__(self, n_sets, and_operator=torch.prod, mean_rule_activation=False):
+        '''
+        Calculates the antecedent values of the rules. Makes all possible combinations from the fuzzy sets 
+        defined for each variable, considering rules of the form: var1 is set1 and ... and varn is setn.
 
         Args:
             n_sets:               list with the number of fuzzy sets associated to each variable.
-            and_operator:         torch function for agregation of the membership values, modeling the AND operator.
+            and_operator:         torch function for aggregation of the membership values, modeling 
+                                  the AND operator.
             mean_rule_activation: bool to keep mean rule activation values.
 
         Tensors:
-            memberships:          tensor (n) with tensors (N, nj) containing the membership values of each variable.
-            weight:               tensor (N) representing the activation weights of a certain rule for all inputs.
+            memberships:          list (n) with tensors (N, nj) containing the membership values of each variable.
+            rule_indices:         tensor (R, n) with indices of fuzzy sets for each rule.
             antecedents:          tensor (N, R) with the activation weights for all rules.
         '''
-
-        super(Antecedents, self).__init__()
-
+        
+        super().__init__()
+        
         self.n_sets = n_sets
         self.n_rules = torch.prod(torch.tensor(n_sets)).item()
         self.and_operator = and_operator
-        self.combinations = list(itertools.product(*[range(i) for i in n_sets]))
-        self.mean_rule_activation = []
         self.bool = mean_rule_activation
+        self.mean_rule_activation = []
+
+        grids = torch.meshgrid([torch.arange(s) for s in n_sets], indexing="ij")
+        self.rule_indices = torch.stack([g.reshape(-1) for g in grids], dim=1)
 
     def forward(self, memberships):
         N = memberships[0].size(0)
-        antecedents = []
-        for combination in self.combinations:
-            mfs = [] 
-            for var_index, set_index in enumerate(combination):
-                mfs.append(memberships[var_index][:, set_index])
-            weight = self.and_operator(torch.stack(mfs, dim=1), dim=1)
-            if isinstance(weight, tuple):  
-                weight = weight[0]  
-            antecedents.append(weight)
-        antecedents = torch.stack(antecedents, dim=1)
-        
+        n = len(self.n_sets)
+        R = self.n_rules
+
+        max_sets = max(self.n_sets)
+        padded = []
+        for j, nj in enumerate(self.n_sets):
+            pad = (0, max_sets - nj)  
+            padded.append(nn.functional.pad(memberships[j], pad))
+        memb_tensor = torch.stack(padded, dim=0)  
+
+        idx = self.rule_indices.T.unsqueeze(1).expand(-1, N, -1)  
+        gathered = torch.gather(memb_tensor, 2, idx)
+
+        antecedents = self.and_operator(gathered.permute(1, 2, 0), dim=2)
+        if isinstance(antecedents, tuple): 
+            antecedents = antecedents[0]
+
         if self.bool:
             with torch.no_grad():
-                self.mean_rule_activation.append(torch.mean(antecedents, dim=0))    
-        
+                self.mean_rule_activation.append(torch.mean(antecedents, dim=0))
+
         return antecedents
 
 class Consequents(nn.Module):
