@@ -7,7 +7,7 @@ A Python implementation of **Adaptive Neuro-Fuzzy Inference Systems (ANFIS)**, c
 # Key Features
 - **Regression and Classification**
 - **Time Series Analysis with RANFIS, GRU-ANFIS and LSTM-ANFIS**
-- **Visualization and Interpretability** via `.print_rules()`, `.plot_var()`, `.plot_rules()`  
+- **Visualization and Interpretability** via `.print_rules()`, `.plot_var()`, `.plot_rules()`, `.rule_activations()`  
 - **Various Membership Functions** (`GaussianMF`, `BellMF`, `TriangularMF`, `SigmoidMF`)  
 - **PyTorch Integration** (GPU acceleration, optimizers, ...) 
 
