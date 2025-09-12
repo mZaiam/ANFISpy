@@ -88,7 +88,7 @@ class ANFIS(nn.Module):
 
         return _plot_var(self, var_name)
     
-    def _rule_activations(self, x):
+    def rule_activations(self, x):
         '''Returns the normalized rule activation for a given input batch.
 
         Args:
@@ -235,7 +235,7 @@ class RANFIS(nn.Module):
 
         return _plot_var(self, var_name)
     
-    def _rule_activations(self, x):
+    def rule_activations(self, x):
         '''Returns the normalized rule activation for a given input batch.
 
         Args:
@@ -382,7 +382,7 @@ class LSTMANFIS(nn.Module):
 
         return _plot_var(self, var_name)
     
-    def _rule_activations(self, x):
+    def rule_activations(self, x):
         '''Returns the normalized rule activation for a given input batch.
 
         Args:
@@ -529,7 +529,7 @@ class GRUANFIS(nn.Module):
 
         return _plot_var(self, var_name)
     
-    def _rule_activations(self, x):
+    def rule_activations(self, x):
         '''Returns the normalized rule activation for a given input batch.
 
         Args:
