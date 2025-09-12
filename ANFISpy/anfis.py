@@ -6,7 +6,7 @@ import numpy as np
 
 from .mfs import GaussianMF, BellMF, SigmoidMF, TriangularMF
 from .layers import Antecedents, Consequents, Inference, RecurrentInference
-from .utils import _plot_var, _plot_rules, _print_rules
+from .utils import _plot_var, _plot_rules, _print_rules, _rule_activations
 
 class ANFIS(nn.Module):
     def __init__(
@@ -15,7 +15,6 @@ class ANFIS(nn.Module):
         mf_shape, 
         and_operator=torch.prod, 
         output_activation=nn.Identity(), 
-        mean_rule_activation=False
     ):
         '''Adaptative Neuro-Fuzzy Inference System with Takagi-Sugeno-Kang architecture. Can perform both regression and
            classification.
@@ -34,7 +33,6 @@ class ANFIS(nn.Module):
                                   'sigmoid' and 'gaussian'.
             and_operator:         torch function to model the AND in the antecedents calculation.
             output_activation:    torch function for output activation function.
-            mean_rule_activation: bool to keep the mean rule activation values. 
         '''
 
         super(ANFIS, self).__init__()
@@ -70,7 +68,7 @@ class ANFIS(nn.Module):
                 [SigmoidMF(n_sets_, uod_) for n_sets_, uod_ in zip(self.input_n_sets, self.input_uod)]
             )
             
-        self.antecedents = Antecedents(self.input_n_sets, and_operator, mean_rule_activation)
+        self.antecedents = Antecedents(self.input_n_sets, and_operator)
         self.consequents = Consequents(self.input_n_sets, self.output_n_classes)
         self.inference = Inference(self.output_n_classes, output_activation)
         
@@ -79,31 +77,40 @@ class ANFIS(nn.Module):
         antecedents = self.antecedents(memberships)
         consequents = self.consequents(x)
         Y = self.inference(antecedents, consequents)
-        
         return Y
 
-    def plot_var(self, var_name, file_name=False):
+    def plot_var(self, var_name):
         '''Plots the membership functions for a certain variable of the model.
 
         Args:
             var_name:  str with the name of the variable, written in the same way as given in dict variables.
-            file_name: str with the name of the file to be saved, if desired.
         '''
 
-        return _plot_var(self, var_name, file_name)
+        return _plot_var(self, var_name)
+    
+    def _rule_activations(self, x):
+        '''Returns the normalized rule activation for a given input batch.
 
-    def print_rules(self, mean_rule_activation=False):
+        Args:
+            x:           tensor (N, n) with input data.
+
+        Returns:
+            activations: tensor (N, R) with normalized rule activations.
+        '''
+
+        return _rule_activations(self, x)
+
+    def print_rules(self, precision=2):
         '''Returns a list with the rules of the model in str format.
         
         Args:
-            mean_rule_activation: bool to return mean rule activation.
+            precision: int for number of decimals to show for the rule parameters. 
             
         Returns:
-            rules:                list of str representing the rules of the system.
-            mean:                 numpy array (R) with normalized mean rule activation.
+            rules:     list of str representing the rules of the system.
         '''
         
-        return _print_rules(self, mean_rule_activation)
+        return _print_rules(self, precision)
     
     def plot_rules(
         self, 
@@ -115,7 +122,6 @@ class ANFIS(nn.Module):
         alpha=0.3,
         x_data=None,
         y_data=None,
-        file_name=None,
     ):
         '''Plot the projection of the fuzzy rules in a two variable space.
         
@@ -128,10 +134,9 @@ class ANFIS(nn.Module):
             alpha:     same as matplotlib.pyplot.
             x_data:    data for scatter plot.
             y_data:    data for scatter plot.
-            file_name: str with the name of the file to be saved, if desired.
         '''
         
-        return _plot_rules(self, var_names, n_points, thr, levels, cmap, alpha, x_data, y_data, file_name)
+        return _plot_rules(self, var_names, n_points, thr, levels, cmap, alpha, x_data, y_data)
 
 class RANFIS(nn.Module):
     def __init__(
@@ -142,7 +147,6 @@ class RANFIS(nn.Module):
         and_operator=torch.prod, 
         output_activation=nn.Identity(),
         bidirectional=False,
-        mean_rule_activation=False
     ):
         '''Recurrent Neuro-Fuzzy Inference System with Takagi-Sugeno-Kang architecture. Can perform both regression and
            classification.
@@ -163,7 +167,6 @@ class RANFIS(nn.Module):
             and_operator:         torch function to model the AND in the antecedents calculation.
             output_activation:    torch function for output activation function.
             bidirectional:        bool to set bidirectional on RNN.
-            mean_rule_activation: bool to keep the mean rule activation values. 
         '''
 
         super(RANFIS, self).__init__()
@@ -200,7 +203,7 @@ class RANFIS(nn.Module):
                 [SigmoidMF(n_sets_, uod_) for n_sets_, uod_ in zip(self.input_n_sets, self.input_uod)]
             )
             
-        self.antecedents = Antecedents(self.input_n_sets, and_operator, mean_rule_activation)
+        self.antecedents = Antecedents(self.input_n_sets, and_operator)
         self.consequents = Consequents(self.input_n_sets, self.output_n_classes)
         self.inference = RecurrentInference(
             self.output_n_classes, 
@@ -223,28 +226,38 @@ class RANFIS(nn.Module):
         y_hat = self.inference(antecedents, consequents, h)
         return y_hat, h_n
     
-    def plot_var(self, var_name, file_name=False):
+    def plot_var(self, var_name):
         '''Plots the membership functions for a certain variable of the model.
 
         Args:
             var_name:  str with the name of the variable, written in the same way as given in dict variables.
-            file_name: str with the name of the file to be saved, if desired.
         '''
 
-        return _plot_var(self, var_name, file_name)
+        return _plot_var(self, var_name)
+    
+    def _rule_activations(self, x):
+        '''Returns the normalized rule activation for a given input batch.
 
-    def print_rules(self, mean_rule_activation=False):
+        Args:
+            x:           tensor (N, n) with input data.
+
+        Returns:
+            activations: tensor (N, R) with normalized rule activations.
+        '''
+
+        return _rule_activations(self, x)
+
+    def print_rules(self, precision=2):
         '''Returns a list with the rules of the model in str format.
         
         Args:
-            mean_rule_activation: bool to return mean rule activation.
+            precision: int for number of decimals to show for the rule parameters. 
             
         Returns:
-            rules:                list of str representing the rules of the system.
-            mean:                 numpy array (R) with normalized mean rule activation.
+            rules:     list of str representing the rules of the system.
         '''
         
-        return _print_rules(self, mean_rule_activation)
+        return _print_rules(self, precision)
     
     def plot_rules(
         self, 
@@ -256,7 +269,6 @@ class RANFIS(nn.Module):
         alpha=0.3,
         x_data=None,
         y_data=None,
-        file_name=None,
     ):
         '''Plot the projection of the fuzzy rules in a two variable space.
         
@@ -269,10 +281,9 @@ class RANFIS(nn.Module):
             alpha:     same as matplotlib.pyplot.
             x_data:    data for scatter plot.
             y_data:    data for scatter plot.
-            file_name: str with the name of the file to be saved, if desired.
         '''
         
-        return _plot_rules(self, var_names, n_points, thr, levels, cmap, alpha, x_data, y_data, file_name)
+        return _plot_rules(self, var_names, n_points, thr, levels, cmap, alpha, x_data, y_data)
     
 class LSTMANFIS(nn.Module):
     def __init__(
@@ -283,7 +294,6 @@ class LSTMANFIS(nn.Module):
         and_operator=torch.prod, 
         output_activation=nn.Identity(),
         bidirectional=False,
-        mean_rule_activation=False
     ):
         '''Long-Short Term Memory Adaptative Neuro-Fuzzy Inference System with Takagi-Sugeno-Kang architecture. Can perform both regression and
            classification.
@@ -304,7 +314,6 @@ class LSTMANFIS(nn.Module):
             and_operator:         torch function to model the AND in the antecedents calculation.
             output_activation:    torch function for output activation function.
             bidirectional:        bool to set bidirectional on LSTM.
-            mean_rule_activation: bool to keep the mean rule activation values. 
         '''
 
         super(LSTMANFIS, self).__init__()
@@ -341,7 +350,7 @@ class LSTMANFIS(nn.Module):
                 [SigmoidMF(n_sets_, uod_) for n_sets_, uod_ in zip(self.input_n_sets, self.input_uod)]
             )
             
-        self.antecedents = Antecedents(self.input_n_sets, and_operator, mean_rule_activation)
+        self.antecedents = Antecedents(self.input_n_sets, and_operator)
         self.consequents = Consequents(self.input_n_sets, self.output_n_classes)
         self.inference = RecurrentInference(
             self.output_n_classes, 
@@ -364,28 +373,38 @@ class LSTMANFIS(nn.Module):
         y_hat = self.inference(antecedents, consequents, h)
         return y_hat, (h_n, c_n)
     
-    def plot_var(self, var_name, file_name=False):
+    def plot_var(self, var_name):
         '''Plots the membership functions for a certain variable of the model.
 
         Args:
             var_name:  str with the name of the variable, written in the same way as given in dict variables.
-            file_name: str with the name of the file to be saved, if desired.
         '''
 
-        return _plot_var(self, var_name, file_name)
+        return _plot_var(self, var_name)
+    
+    def _rule_activations(self, x):
+        '''Returns the normalized rule activation for a given input batch.
 
-    def print_rules(self, mean_rule_activation=False):
+        Args:
+            x:           tensor (N, n) with input data.
+
+        Returns:
+            activations: tensor (N, R) with normalized rule activations.
+        '''
+
+        return _rule_activations(self, x)
+
+    def print_rules(self, precision=2):
         '''Returns a list with the rules of the model in str format.
         
         Args:
-            mean_rule_activation: bool to return mean rule activation.
+            precision: int for number of decimals to show for the rule parameters. 
             
         Returns:
-            rules:                list of str representing the rules of the system.
-            mean:                 numpy array (R) with normalized mean rule activation.
+            rules:     list of str representing the rules of the system.
         '''
         
-        return _print_rules(self, mean_rule_activation)
+        return _print_rules(self, precision)
     
     def plot_rules(
         self, 
@@ -397,7 +416,6 @@ class LSTMANFIS(nn.Module):
         alpha=0.3,
         x_data=None,
         y_data=None,
-        file_name=None,
     ):
         '''Plot the projection of the fuzzy rules in a two variable space.
         
@@ -410,10 +428,9 @@ class LSTMANFIS(nn.Module):
             alpha:     same as matplotlib.pyplot.
             x_data:    data for scatter plot.
             y_data:    data for scatter plot.
-            file_name: str with the name of the file to be saved, if desired.
         '''
         
-        return _plot_rules(self, var_names, n_points, thr, levels, cmap, alpha, x_data, y_data, file_name)
+        return _plot_rules(self, var_names, n_points, thr, levels, cmap, alpha, x_data, y_data)
     
 class GRUANFIS(nn.Module):
     def __init__(
@@ -424,7 +441,6 @@ class GRUANFIS(nn.Module):
         and_operator=torch.prod, 
         output_activation=nn.Identity(),
         bidirectional=False,
-        mean_rule_activation=False
     ):
         '''Gated Recurrent Unit Adaptative Neuro-Fuzzy Inference System with Takagi-Sugeno-Kang architecture. Can perform both regression and
            classification.
@@ -445,7 +461,6 @@ class GRUANFIS(nn.Module):
             and_operator:         torch function to model the AND in the antecedents calculation.
             output_activation:    torch function for output activation function.
             bidirectional:        bool to set bidirectional on GRU.
-            mean_rule_activation: bool to keep the mean rule activation values. 
         '''
 
         super(GRUANFIS, self).__init__()
@@ -482,7 +497,7 @@ class GRUANFIS(nn.Module):
                 [SigmoidMF(n_sets_, uod_) for n_sets_, uod_ in zip(self.input_n_sets, self.input_uod)]
             )
             
-        self.antecedents = Antecedents(self.input_n_sets, and_operator, mean_rule_activation)
+        self.antecedents = Antecedents(self.input_n_sets, and_operator)
         self.consequents = Consequents(self.input_n_sets, self.output_n_classes)
         self.inference = RecurrentInference(
             self.output_n_classes, 
@@ -505,28 +520,38 @@ class GRUANFIS(nn.Module):
         y_hat = self.inference(antecedents, consequents, h)
         return y_hat, h_n
     
-    def plot_var(self, var_name, file_name=False):
+    def plot_var(self, var_name):
         '''Plots the membership functions for a certain variable of the model.
 
         Args:
             var_name:  str with the name of the variable, written in the same way as given in dict variables.
-            file_name: str with the name of the file to be saved, if desired.
         '''
 
-        return _plot_var(self, var_name, file_name)
+        return _plot_var(self, var_name)
+    
+    def _rule_activations(self, x):
+        '''Returns the normalized rule activation for a given input batch.
 
-    def print_rules(self, mean_rule_activation=False):
+        Args:
+            x:           tensor (N, n) with input data.
+
+        Returns:
+            activations: tensor (N, R) with normalized rule activations.
+        '''
+
+        return _rule_activations(self, x)
+
+    def print_rules(self, precision=2):
         '''Returns a list with the rules of the model in str format.
         
         Args:
-            mean_rule_activation: bool to return mean rule activation.
+            precision: int for number of decimals to show for the rule parameters. 
             
         Returns:
-            rules:                list of str representing the rules of the system.
-            mean:                 numpy array (R) with normalized mean rule activation.
+            rules:     list of str representing the rules of the system.
         '''
         
-        return _print_rules(self, mean_rule_activation)
+        return _print_rules(self, precision)
     
     def plot_rules(
         self, 
@@ -538,7 +563,6 @@ class GRUANFIS(nn.Module):
         alpha=0.3,
         x_data=None,
         y_data=None,
-        file_name=None,
     ):
         '''Plot the projection of the fuzzy rules in a two variable space.
         
@@ -551,7 +575,6 @@ class GRUANFIS(nn.Module):
             alpha:     same as matplotlib.pyplot.
             x_data:    data for scatter plot.
             y_data:    data for scatter plot.
-            file_name: str with the name of the file to be saved, if desired.
         '''
         
-        return _plot_rules(self, var_names, n_points, thr, levels, cmap, alpha, x_data, y_data, file_name)
+        return _plot_rules(self, var_names, n_points, thr, levels, cmap, alpha, x_data, y_data)

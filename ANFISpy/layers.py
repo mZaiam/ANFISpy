@@ -15,7 +15,7 @@ L: sequence length.
 '''
 
 class Antecedents(torch.nn.Module):
-    def __init__(self, n_sets, and_operator=torch.prod, mean_rule_activation=False):
+    def __init__(self, n_sets, and_operator=torch.prod):
         '''
         Calculates the antecedent values of the rules. Makes all possible combinations from the fuzzy sets 
         defined for each variable, considering rules of the form: var1 is set1 and ... and varn is setn.
@@ -24,8 +24,7 @@ class Antecedents(torch.nn.Module):
             n_sets:               list with the number of fuzzy sets associated to each variable.
             and_operator:         torch function for aggregation of the membership values, modeling 
                                   the AND operator.
-            mean_rule_activation: bool to keep mean rule activation values.
-
+                                  
         Tensors:
             memberships:          list (n) with tensors (N, nj) containing the membership values of each variable.
             rule_indices:         tensor (R, n) with indices of fuzzy sets for each rule.
@@ -37,7 +36,6 @@ class Antecedents(torch.nn.Module):
         self.n_sets = n_sets
         self.n_rules = torch.prod(torch.tensor(n_sets)).item()
         self.and_operator = and_operator
-        self.bool = mean_rule_activation
         self.mean_rule_activation = []
 
         grids = torch.meshgrid([torch.arange(s) for s in n_sets], indexing="ij")
@@ -62,10 +60,6 @@ class Antecedents(torch.nn.Module):
         if isinstance(antecedents, tuple): 
             antecedents = antecedents[0]
 
-        if self.bool:
-            with torch.no_grad():
-                self.mean_rule_activation.append(torch.mean(antecedents, dim=0))
-
         return antecedents
 
 class Consequents(nn.Module):
@@ -78,7 +72,7 @@ class Consequents(nn.Module):
 
         Tensors:
             x:            tensor (N, n) containing the inputs of a variable.
-            consequents:  tensor (N, R) containing the consequents of each rule.
+            consequents:  tensor (N, R) or (N, R * m) containing the consequents of each rule.
         '''
 
         super(Consequents, self).__init__()
@@ -115,7 +109,7 @@ class Inference(nn.Module):
         Tensors:
             antecedents:       tensor (N, R) with the weights of activation of each rule.
             consequents:       tensor (N, R) with the outputs of each rule.
-            Y:                 tensor (N) with the outputs of the system.
+            Y:                 tensor (N) or (N, m) with the outputs of the system.
             output_activation: torch function.
         '''
         
