@@ -16,7 +16,7 @@ def test_antecedents_initialization():
     assert ant.n_rules == n_sets[0] * n_sets[1] * n_sets[2]
     
 def test_antecedents_output():
-    ant = Antecedents(n_sets=n_sets, and_operator=torch.prode)
+    ant = Antecedents(n_sets=n_sets, and_operator=torch.prod)
     weights = ant(memberships)
     assert weights.shape[0] == n_samples
     assert weights.shape[1] == n_sets[0] * n_sets[1] * n_sets[2]

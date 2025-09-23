@@ -39,7 +39,8 @@ class Antecedents(torch.nn.Module):
         self.mean_rule_activation = []
 
         grids = torch.meshgrid([torch.arange(s) for s in n_sets], indexing="ij")
-        self.rule_indices = torch.stack([g.reshape(-1) for g in grids], dim=1)
+        rule_indices_tensor = torch.stack([g.reshape(-1) for g in grids], dim=1)
+        self.register_buffer('rule_indices', rule_indices_tensor)
 
     def forward(self, memberships):
         N = memberships[0].size(0)
