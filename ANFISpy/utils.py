@@ -156,6 +156,9 @@ def _plot_rules(
                 rule = torch.stack([mf0, mf1], dim=0)
                 Z = instance.and_operator(rule, dim=0).numpy()
 
+                if isinstance(Z, tuple):
+                    Z = Z[0]
+
                 Z[Z < thr] = np.nan
                 ax_main.contourf(X, Y, Z, levels=levels, cmap=cmap, alpha=alpha)
 
