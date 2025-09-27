@@ -154,11 +154,13 @@ def _plot_rules(
                 mf0 = mu1.unsqueeze(1).repeat(1, n_points)  
                 mf1 = mu0.unsqueeze(0).repeat(n_points, 1)
                 rule = torch.stack([mf0, mf1], dim=0)
-                Z = instance.and_operator(rule, dim=0).numpy()
+
+                Z = instance.and_operator(rule, dim=0)
 
                 if isinstance(Z, tuple):
                     Z = Z[0]
 
+                Z = Z.numpy()
                 Z[Z < thr] = np.nan
                 ax_main.contourf(X, Y, Z, levels=levels, cmap=cmap, alpha=alpha)
 
