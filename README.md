@@ -8,7 +8,7 @@ A Python implementation of **Adaptive Neuro-Fuzzy Inference Systems (ANFIS)**, c
 - **Regression and Classification**
 - **Time Series Analysis with RANFIS, GRU-ANFIS and LSTM-ANFIS**
 - **Visualization and Interpretability** via `.print_rules()`, `.plot_var()`, `.plot_rules()`, `.rule_activations()`  
-- **Various Membership Functions** (`GaussianMF`, `BellMF`, `TriangularMF`, `SigmoidMF`)  
+- **Various Membership Functions** (`GaussianMF`, `BellMF`, `TriangularMF`, `SigmoidMF`) **and T-Norms** (`MinAND`, `ProdAND`, `HamacherAND`, `FrankAND`, `LukasiewiczAND`)
 - **PyTorch Integration** (GPU acceleration, optimizers, ...) 
 
 # Repository Organization
