@@ -21,7 +21,7 @@ The repository is organized in the following directories:
 The installation of the package can be done using `pip` in a `bash` terminal:
 
 ```bash
-pip install ANFISpy
+pip install anfispy
 ```
 Then, the package can be imported in Python using:
 
