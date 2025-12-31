@@ -4,4 +4,4 @@ from .layers import Antecedents, Consequents, ConsequentsNN, Inference, Recurren
 from .tnorms import LukasiewiczAND, MinAND, ProdAND, HamacherAND, FrankAND
 from .anfis import ANFIS, CANFIS, RANFIS, LSTMANFIS, GRUANFIS
 
-__version__ = "1.2"
+__version__ = "1.2.1"

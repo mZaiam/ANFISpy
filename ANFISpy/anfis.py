@@ -242,18 +242,6 @@ class CANFIS(nn.Module):
         '''
 
         return _rule_activations(self, x)
-
-    def print_rules(self, precision=2):
-        '''Returns a list with the rules of the model in str format.
-        
-        Args:
-            precision: int for number of decimals to show for the rule parameters. 
-            
-        Returns:
-            rules:     list of str representing the rules of the system.
-        '''
-        
-        return _print_rules(self, precision)
     
     def plot_rules(
         self, 
