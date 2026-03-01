@@ -82,5 +82,20 @@ anfis_classification = ANFIS(variables, 'bell')
 
 The notebook [anfis_example.ipynb](https://github.com/mZaiam/ANFISpy/blob/main/examples/anfis_example.ipynb) has a more detailed explanation of how to use the model, as well as the visualization methods implemented. The CANFIS, RANFIS, GRU-ANFIS and LSTM-ANFIS models are instantiated the same way as ANFIS, and examples can be seen in [canfis_example.ipynb](https://github.com/mZaiam/ANFISpy/blob/main/examples/canfis_example.ipynb), [ranfis_example.ipynb](https://github.com/mZaiam/ANFISpy/blob/main/examples/ranfis_example.ipynb), [gruanfis_example.ipynb](https://github.com/mZaiam/ANFISpy/blob/main/examples/gruanfis_example.ipynb) and [lstmanfis_example.ipynb](https://github.com/mZaiam/ANFISpy/blob/main/examples/lstmanfis_example.ipynb).
 
+# Citation
+If you used this package in your work, please cite the original paper [ANFISpy: a python package for neuro-fuzzy models](https://link.springer.com/article/10.1007/s00521-026-11914-6) as:
+```latex
+@article{monteiro2026anfispy,
+  title={ANFISpy: a python package for neuro-fuzzy models},
+  author={Monteiro, Matheus Zaia and Wasques, Vinicius Francisco},
+  journal={Neural Computing and Applications},
+  volume={38},
+  number={4},
+  pages={59},
+  year={2026},
+  publisher={Springer}
+}
+```
+
 # Contact
 This repository was built by Matheus Zaia Monteiro under supervision of PhD Vinicius Francisco Wasques. Feel free to get in contact via the following e-mails: `matheus.z.monteiro@gmail.com` and/or `vinicius.wasques@ilum.cnpem.br`.
